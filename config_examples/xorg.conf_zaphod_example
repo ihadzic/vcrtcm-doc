@@ -1,0 +1,153 @@
+Section "Monitor"
+	Identifier   "Monitor 0"
+EndSection
+
+Section "Monitor"
+	Identifier   "Monitor 1"
+EndSection
+
+Section "Monitor"
+        Identifier   "Monitor 2"
+EndSection
+
+Section "Monitor"
+       	Identifier   "Monitor 3"
+EndSection
+
+Section "Monitor"
+        Identifier   "Monitor 4"
+EndSection
+
+Section "Monitor"
+        Identifier   "Monitor 5"
+EndSection
+
+Section "Monitor"
+        Identifier   "Monitor 6"
+EndSection
+
+Section "ServerFlags"
+	Option "DRI2"
+EndSection
+
+Section "Device"
+	Identifier      "GPU 0"
+	Driver          "radeon"
+	Screen          0
+	Option          "AccelMethod"    "EXA"
+	Option          "ZaphodHeads"    "DVI-0"
+	BusID           "PCI:4:0:0"
+EndSection
+
+Section "Device"
+	Identifier      "GPU 1"
+	Driver          "radeon"
+	Screen          1
+	Option          "AccelMethod"    "EXA"
+	Option          "ZaphodHeads"    "VGA-0"
+	BusID           "PCI:4:0:0"
+EndSection
+
+Section "Device"
+	Identifier      "GPU 2"
+	Driver          "radeon"
+	Screen          2
+	Option          "AccelMethod"    "EXA"
+	Option		"ZaphodHeads"    "VGA-0"
+	BusID           "PCI:4:0:0"
+EndSection
+
+Section "Device"
+	Identifier      "GPU 3"
+	Driver          "radeon"
+	Screen          3
+	Option          "AccelMethod"    "EXA"
+	Option		"ZaphodHeads"    "VGA-0"
+	BusID           "PCI:4:0:0"
+EndSection
+
+Section "Device"
+	Identifier      "GPU 4"
+	Driver          "radeon"
+	Screen          4
+	Option          "AccelMethod"    "EXA"
+	Option		"ZaphodHeads"    "VGA-0"
+	BusID           "PCI:4:0:0"
+EndSection
+
+Section "Device"
+	Identifier      "GPU 5"
+	Driver          "radeon"
+	Screen          5
+	Option          "AccelMethod"    "EXA"
+	Option		"ZaphodHeads"    "VGA-0"
+	BusID           "PCI:4:0:0"
+EndSection
+
+Section "Device"
+        Identifier      "GPU 6"
+	Driver          "radeon"
+	Option          "ColorTiling"    "off"
+	Screen          6
+	Option          "AccelMethod"    "EXA"
+	Option          "ZaphodHeads"    "DisplayPort-0"
+	BusID           "PCI:4:0:0"
+EndSection
+
+Section "Screen"
+	Identifier  "Screen 0"
+	Device      "GPU 0"
+	Monitor     "Monitor 0"
+EndSection
+
+Section "Screen"
+	Identifier  "Screen 1"
+	Device      "GPU 1"
+	Monitor     "Monitor 1"
+EndSection
+
+Section "Screen"
+	Identifier  "Screen 2"
+	Device      "GPU 2"
+	Monitor     "Monitor 2"
+EndSection
+
+Section "Screen"
+	Identifier  "Screen 3"
+	Device      "GPU 3"
+	Monitor     "Monitor 3"
+EndSection
+
+Section "Screen"
+	Identifier  "Screen 4"
+	Device      "GPU 4"
+	Monitor     "Monitor 4"
+EndSection
+
+Section "Screen"
+	Identifier  "Screen 5"
+	Device      "GPU 5"
+	Monitor     "Monitor 5"
+EndSection
+
+
+Section "Screen"
+        Identifier  "Screen 6"
+	Device      "GPU 6"
+	Monitor     "Monitor 6"
+	SubSection  "Display"
+		Modes "1680x1050"
+	EndSubsection
+EndSection
+
+Section "ServerLayout"
+	Identifier	"MyLayout"
+	Screen        	0 "Screen 0" 0 0
+	Screen		1 "Screen 1" 
+	Screen		2 "Screen 2"
+	Screen		3 "Screen 3"
+	Screen 		4 "Screen 4"
+	Screen 		5 "Screen 5"
+	Screen          6 "Screen 6" RightOf "Screen 0"
+EndSection
+

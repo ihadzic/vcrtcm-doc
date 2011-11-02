@@ -1,0 +1,1027 @@
+Copyright (c) 2010, Alcatel-Lucent, Inc., Bell Laboratories
+
+Author:
+  Ilija Hadzic
+
+With contributions from: 
+  Martin Carroll, Bill Katsak, Chris Woithe, and Larry Liu
+
+1. Introduction
+===============
+
+Virtual CRTC (VCRTC) is a new (and experimental) mechanism for
+redirecting pixels from a GPU's frame buffer to some other device.
+It works with existing direct-rendering infrastructure (DRI) for
+Linux and allows any device that can do something useful to
+pixels to behave as a CRTC attached to a frame buffer of a GPU.
+
+VCRTCs can be viewed as a step in Linux DRI towards separating
+the render node from a display node. In a nutshell, a GPU driver
+can create (almost) arbitrary number of virtual CRTCs and register
+them with the Direct Rendering Manager (DRM) module. These virtual
+CRTCs can then be attached to devices (real hardware or software
+modules emulating devices) that are external to the GPU. These
+external devices become display units for the frame buffer associated
+with the attached virtual CRTC. It is also possible to attach
+external devices to real (physical) CRTC and allow the pixels
+to be displayed on both the video connector of the GPU and the
+external device.
+
+From the application perspective, virtual CRTCs do not differ
+from from physical CRTCs. For example, the Xorg will find and
+use the virtual CRTCs according to the configuration in
+xorg.conf. In general, anything that uses DRM can use virtual
+CRTCs.
+
+External devices attached to virtual CRTCs are referred here as
+the Compression Transmission and Display (CTD) devices. The name
+implies what one could typically do with the pixels: compress
+them or transmit them over some link or just display them
+(the UDLCTD driver described later is an example of a device
+that does all three things). However, this is by no means
+a limitation of the system can do.
+
+The code has been developed in Bell Labs (a research unit
+of Alcatel-Lucent, Inc.) by a small groups of researchers and
+interns (PhD students) from Rutgers University. We share this
+code with the community in hope that it will be useful and that
+it will spark a wider-scale community effort in further extending
+the features of the Linux graphics stack. We hope to hear
+from you and welcome any kind of contributions, such as, suggestions
+comments, bug reports and (last but not least) code contributions
+(i.e., patches).
+
+In the rest of this document, we briefly describe the architecture
+and provide some information to get you started.
+
+2. Architecture Overview
+========================
+
+The central module of the architecture is the VCRTCM (short for
+Virtual CRTC Manager). VCRTCM module provides an abstraction of CTD 
+hardware to the GPU driver and an abstraction of GPU hardware to the 
+CTD driver. In other words, GPU and CTD driver interact through a set 
+of abstraction functions provided by the VCRTCM. One way to 
+view the VCRTCM is as a display equivalent of DRM. Just like DRM 
+module provides an abstract interface between the GPU rendering hardware
+and the graphics application (e.g. Mesa/OpenGL, XF86_Video libraries), the
+VCRTCM module provides an abstract interface between the GPU rendering
+hardware and the CTD hardware.
+
+Roughly, a picture looks like this:
+
+
++-----+      +-----+      +--------+      +-----+
+| DRM |<-+-->| GPU |<-+-->| VCRTCM |<-+-->| CTD |
++-----+  |   +-----+  |   +--------+  |   +-----+
+         |            |               |
+         |   +-----+  |               |   +-----+
+         +-->| GPU |<-+               +-->| CTD |
+             +-----+                      +-----+
+
+A CTD device can be attached to a CRTC of a GPU at run time. It
+can also be detached and re-attached to some other CRTC at any
+time. VBlank events are sourced by the CTD if it is attached
+to a virtual CRTC and the rendering and page flipping synchronizes
+to the CTD device. If a CTD device is attached to a physical CRTC,
+then VBlanks are still sourced by the physical connector (and CTD
+just asynchronously scrapes the frame buffer).
+
+The primary intended use of CTDs is with virtual CRTCs, so we do 
+not worry (for now) about the frame tearing that occurs when
+a CTD device is attached to a physical CRTC. When attached to a
+virtual CRTC, we provide all the necessary mechanisms to run
+synchronized to the CTD.
+
+Virtual CRTCs also emulate the hardware cursor by accessing
+the cursor sprite data in addition to the frame buffer data
+and leaving it to the CTD to overlay it. Whether such a "hardware"
+cursor is really hardware, depends on what the CTD device is, but
+from the GPU's perspective, it looks and feels like it is:
+the application using the GPU does not need to do anything special
+for the virtual CRTC if it wants to use the hardware cursor.
+
+In theory (and in ideal world), one should be able to create
+any number of virtual CRTCs. In practice (and in real world), there
+is a limitation imposed by the DRM to 32; that is, the total number
+of CRTCs (physical and virtual) must be less than 32. However,
+this is still quite a decent number to work with and most likely
+you will hit a PCI Express bandwidth limitation sooner than you
+will hit the hard limit imposed by the DRM.
+
+3. Use Cases
+============
+
+The usefulness of VRTCM architecture depends on what the available
+CTDs do. We have currently released two CTD drivers. In this section
+we briefly described what you can do with them and and make your
+Linux box do some geeky things.
+
+UDLCTD driver is a device driver for a DisplayLink device (see
+http://www.displaylink.com/ for more information) and allows you
+to use a Radeon GPU for 3D rendering and display the rendered pixels
+on a monitor attached to a DisplayLink device. When you attach
+a UDLCTD device to a virtual CRTC, you will have a new screen that
+will be an "equal citizen" with your local DVI, HDMI, VGA, whatever
+connectors that your GPU provides. Currently, DisplayLink support
+in Linux is limited to unaccelerated graphics using xf86-video-fbdev
+DDX. Using VCRTCM allows you to use your GPU for acceleration
+(and use the GPU-specific DDX), and your DL device for adding more
+heads to your monitor. UDLCTD driver reuses some of the code from
+drivers/video/udlfb.c, but in general it is a new driver that
+allows to use the DL hardware in a new way.
+
+V4L2CTD driver is a not associated with any hardware. Instead,
+it is a software adapter that exposes the GPU frame buffer to
+the user space as a Video-for-Linux device (/dev/videoN). 
+You can use it to do many interesting things. For example, you
+can open VLC and capture the frames rendered by your GPU into a
+file or stream them over the network to another machine with a
+video player (don't expect it to "scream" in performance because
+it will take a lot of toll on encoding). Alternatively, you can
+use VLC to capture your GPU-rendered frames into a file. In general,
+you can run any application that can understand V4L2 format.
+At present, we support limited number of V4L2 formats but this will
+grow over time as the driver matures.
+
+Other CTD drivers: we will release a few more examples over time
+(including the stub that can be used as a starting point for writing
+your own CTD drivers), but this is the area where we would like
+to see the most contributions from the community. Some examples
+include combining your modern (accelerated) GPU combined with
+some less capable (or unaccelerated) video card (the latter being
+a CTD) to extend the number of display connectors available to the
+former. We would be especially pleased to see some uses that
+we didn't expect.
+
+4. Supported Hardware
+=====================
+
+At present we only support AMD (formerly ATI) Radeon GPU based
+on R600 or newer ASICs (R6XX, R7XX, Evergreen, Northern Islands).
+We may add support for other drivers in the future (e.g. Intel,
+Nouveau, etc.), time permitting. If you are interested in
+contributing patches that would allow us to support GPUs other
+than Radeon, we will gladly take them.
+
+Pretty much any PC with 16x PCI Express slot (to host your GPU)
+will do the job, but keep in mind that your DRAM speed or the
+speed of your chipset may limit the performance of getting the pixels
+out of the GPU, which ultimately limits the frames-per-second (FPS)
+performance. We also strongly recommend that you use the system
+whose chipset is PCI Express Gen2 compliant. Gen1 systems have half
+the bandwidth for the same number of lanes and that may limit your
+FPS performance. We are testing everything on machines with X58
+chipset and Intel i7 processor.
+
+All of the examples shown in this document assume that your
+CTD device is a DisplayLink dongle. We tested the system with
+UGA-2K-A, UGA-165 and UGA-125, but we believe that things will likely
+work with other DisplayLink devices. If they don't, please send us
+some patches ;-).
+
+5. Obtaining and Compiling the Kernel
+=====================================
+
+To enable VCRTCM in your system you first need our kernel. The kernel
+tracks drm-next branch maintained by Linux DRM developer Dave Airlie
+on freedesktop.org. So most of the time, you will find our kernel include
+everything that drm-next kernel includes and a number of our patches in
+addition.
+
+We will maintain two branches. First branch is drm-next-vcrtcm, which is 
+at the time of this writing (Halloween, 2011) rebased to drm-next
+branch and over time will be constantly merged with the progress of
+drm-next. The second is drm-next-vcrtcm-rebased, which we will periodically
+update by copying drm-next-vcrtcm and rebasing it to the current
+drm-next. If you want to track us and write your code based on our
+kernel, then you should track drm-next-vcrtcm branch because this is the
+branch that we will never rebase, so you can safely track us without
+a fear that we will pull the rug underneath.
+
+On the other hand, if you are already tracking drm-next from freedesktop
+and would just like to apply our patches to your repository, or if you
+want to extract patches that you will apply to a "stock" kernel that 
+came with your distro, it may be cleaner to do it off drm-next-vcrtcm-rebased
+branch (you will have one linear succession of our patches merge into your
+local work). However, keep in mind that we *will* be rebasing this branch
+so if you start writing your own code based on this branch, we *may* pull
+the rug underneath you. 
+
+We will be submitting our own patches into drm-next-vcrtcm and then 
+propagating them into drm-next-vcrtcm-rebased, so the latter branch
+may occasionally fall behind the former.
+
+Knowing all this, you can pick your favorite branch (we'll assume it's
+drm-next-vcrtcm) and obtain the kernel
+
+$ git clone git://github.com/ihadzic/linux-vcrtcm.git
+$ cd linux-vcrtcm
+$ git branch drm-next-vcrtcm origin/drm-next-vcrtcm
+$ git checkout drm-next-vcrtcm
+
+Configure your kernel (e.g., using 'make menuconfig' and make sure 
+that the following components are selected (all are under 
+Device drivers--->Graphics support)
+
+  <M> Direct Rendering Manager
+       <M> Bell Labs Virtual CRTC Manager (VCRTCM)
+              VCRTCM CTD Drivers
+                   <M> DisplayLink USB Graphics Adapter CTD Driver
+                   <M> Video for Linux CTD Driver
+       ....
+       ....
+       <M> ATI Radeon
+       [*]    Enable modesetting on radeon by default - NEW DRIVER
+
+The corresponding options in .config files are:
+
+CONFIG_DRM=m
+CONFIG_DRM_KMS_HELPER=m
+CONFIG_DRM_RADEON=m
+CONFIG_DRM_RADEON_KMS=y
+CONFIG_DRM_VCRTCM=m
+CONFIG_DRM_VCRTCM_CTD_UDLCTD=m
+CONFIG_DRM_VCRTCM_CTD_V4L2CTD=m
+
+At present only the 'm' (compile as kernel-loadable module) option has
+been tested for VCRTCM, UDLCTD and V4L2CTD, so you should compile
+all the necessary components as modules. If you decide to experiment
+with 'y' option, please report the findings.
+
+It is very important that you use kernel modesettings (KMS) option
+for Radeon driver. We do not support nor plan to ever support UMS
+(the latter is the legacy driver mode that is being phased out).
+
+Note that you do *not* need the "stock" UDL driver (udlfb). 
+It is not used and not required by the VCRTCM infrastructure.
+If you chose to include it, make sure it is compiled as a module so
+that you can chose whether to load the udlfb or udlctd.
+Normally, if you are using it with VCRTCM, you will want to use
+udlctd.
+
+Build the kernel and install the kernel image and kernel
+loadable modules modules the usual way (typically by typing
+'make' followed by 'make modules_install') and update your boot
+loader configuration to boot the new kernel. Make sure you copy
+your kernel image where your loader will find it (typically
+in /boot directory; you can also use 'make install' after the
+kernel is built).
+
+In addition to your usual boot line, you will have to tell the 
+radeon module (GPU driver) how many virtual CRTCs to create when
+it loads. At present, the number of virtual CRTCs is a a parameter
+for the GPU driver and cannot be changed at runtime. You do this
+by setting the parameter num_virt_crtcs. So, your kernel boot line
+should have something like radeon.num_virt_crtcs=<N>, where
+<N> is the number of virtual CRTCs to create.
+
+We also strongly recommend that you run the PCI-Express interface
+of your GPU at Gen2 (5GT/s per lane) speed. To do that, set
+radeon.pcie_gen2=1 parameter at load time.
+
+For example, these are the boot lines that we typically use
+for Grub (we enable Gen2 speed and create 4 virtual CRTCs).
+
+title Gentoo Linux 3.1.0-rc10+ (4 virtual crtcs)
+root (hd0,0)
+kernel /kernel/vmlinuz-3.1.0-rc10+ root=/dev/sda3 radeon.num_virt_crtcs=4 radeon.pcie_gen2=1
+
+The above lines may be slightly different depending on your distribution
+and the loader you are using (we use Gentoo Linux with Grub loader), but
+you should be able to figure it out for your specific case.
+
+There are a few other parameters that we have added to the "stock"
+radeon module, but they are not as important at this point.
+
+6. Booting the New Kernel
+=========================
+
+Now you are ready to boot up the new kernel. So reboot the machine
+and if you did everything right, the new kernel should boot. After you
+boot up the kernel, you can type 'modinfo radeon' to see what parameters
+the module understands (you should see the new parameters
+that are not available in the module that normally comes with
+your Linux distribution). Likewise, you can run 'modinfo' command on
+vcrtcm, udlctd, and v4l2ctd. This is also a good way to make sure
+that the modules you need are there and available for use.
+
+Also you can use 'lsmod' to check whether any of the modules has
+automatically loaded. If you have a DisplayLink device plugged into
+your USB port and if you are running UDEV, the system should
+automatically load the UDLCTD module. VCRTCM module should also load
+automatically because the GPU driver (radeon) now depends on it. 
+You can check what loaded using the 'lsmod' command. You should see
+udlctd driver loaded and the monitor attached to your DL device
+should be blue (this is a default pattern that we send in absence
+of any useful pixels; we also send a red pattern if something goes
+wrong).
+
+If you see the udlfb module loaded instead of udlctd module, you will
+probably want to blacklist the former and reboot your system (typically
+by adding it to /etc/modprobe.d/blacklist.conf file, but that may vary
+depending on your distribution).
+
+If udlctd driver does not load even if you have a DisplayLink
+device connected to your USB port, you can manually insert it using
+'modprobe udlctd'. You can also insert v4l2ctd module using 
+'modprobe v4l2ctd'.
+
+7. Obtaining and Compiling the Control Application
+===================================================
+
+In addition to the new kernel (and modules described above) you will
+also need a control application. This application is used to attach
+and detach CTD drivers to the CRTCs of your GPU driver. It talks to the
+GPU driver using a newly introduced ioctl() and controls which CTD
+is attached to which CRTC. It also controls the frame rate (and thus
+the VBlank rate) associated with each virtual CRTC.
+
+To obtain the clone its Git repository
+
+git clone git://github.com/ihadzic/radeon_vcrtcm_ctl.git
+cd radeon_vcrtcm_ctl
+
+You will be on 'master' branch, which is at the time of this writing
+the only branch in this repository.
+
+To compile it, you must be running the new kernel because the
+build process will look for some .h files in the running kernel.
+Type 'make' and you will get an executable called radeon_vcrtcm_ctl.
+Put it somewhere where your shell will find it. We will go through
+some usage example later. You can always type 'radeon_vcrtcm_ctl ?'
+for a short help page.
+
+We should also note that at this time, the security settings of
+the new ioctl() are rather loose, so anyone with the ability to open
+/dev/drm/cardN device can control virtual CRTCs. Given that the code
+is experimental, we don't mind trading security for convenience.
+We will later tighten this up.
+
+You will also notice that radeon_vcrtcm_ctl program is quite trivial,
+but it does the job and it's primary purpose is to get you going and
+provide examples of controlling the VCRTCM using the new ioctl().
+We do not have plans to make it much fancier; if you feel like contributing
+here (either by extending the program itself or wrapping it into scripts),
+you are most welcome.
+
+Before proceeding, you will also have to note the major device number
+of your CTD drivers. Note that the device numbers are assigned
+dynamically, so depending on what else you load they may change if
+you change your system configuration. The easiest way to find out is
+to look at /proc/devices. On our system we get:
+
+$ cat /proc/devices
+Character devices:
+  ...
+  ...
+  250 v4l2ctd
+  251 udlctd
+  ...
+  ...
+Block devices:
+  ...
+  ...
+
+So in the examples to follow we will use 251 to refer to udlctd driver,
+with understanding that on your system it may be something else.
+
+
+8. Getting your System Ready
+============================
+
+You are almost ready to try out VCRTCM, but first you should make
+sure that you have all userland packages installed and that you understand
+some limitations. You will also need to apply some patches to fix
+a few bugs that we found in Xorg and ATI DDX (xf86-video-ati library).
+
+Minimum requirements are:
+
+- Kernel with our patches (described above)
+- radeon_vcrtcm_ctl application (described above)
+- libdrm >=2.4.25 
+- xf86-video-ati >=6.14.2 
+- mesa >= 7.11
+- Xorg >= 1.10.x
+- latest Radeon microcode
+- our patch (see below) for xf86-video-ati
+- our patch (see below) for Xorg
+
+
+You should also make sure that your system works without VCRTCM and that
+it actually uses hardware acceleration for graphics rendering (you can
+use glxinfo to check that). Note that if you are missing Radeon microcode
+the system will fall back to software rendering. Different Linux distributions
+distribute the microcode differently, so check what the deal with your
+distro is. In worst case, you will have to get it directly from
+Alex Deucher's web site: http://people.freedesktop.org/~agd5f/radeon_ucode/
+
+You should not proceed before making sure that you have a functioning
+system with direct rendering enabled. If in doubt, ask for support on
+the appropriate DRI mailing lists 
+(http://dri.freedesktop.org/wiki/MailingLists)
+
+Also note that in our system we use the latest libdrm, xf86-video-ati,
+and mesa libraries from Git. We recommend that you do that too, because
+VCRTCM is work in progress and it assumes the use of development
+libraries and kernel. You can obtain the necessary libraries from
+
+libdrm: git://anongit.freedesktop.org/mesa/drm
+xf86-video-ati: git://anongit.freedesktop.org/xorg/driver/xf86-video-ati
+mesa: git://anongit.freedesktop.org/mesa/mesa
+
+Once again, please make sure that your system works irrespective of
+VCRTCM before proceeding.
+
+Now it's time to fix some bugs in xf86-video-ati library and Xorg. There
+are two patches to apply (and you will have to recompile and reinstall the
+two packages after that). The bugs are generic, but exposed only if 
+VCRTCM is used. You should understand what the patches are about
+and how the bugs will affect you.
+
+We plan to send the patches upstream, so at some point this step will
+become unnecessary. Until then, you will have to manually apply the
+patches to your system. The reason we have not sent the patches
+upstream yet, was that there was no use-case that exposed these bugs
+and we felt that the community would not find them valuable without
+a decent use case that exposes the bugs. Now that VCRTCM code is public
+there is a clear use case so we will be pushing the patches soon.
+
+a) xf86-video-ati patch
+-----------------------
+
+This patch is located in
+
+patches/0001-remove-hard-coded-limitation-to-6-crtcs.patch 
+
+in the same directory where this document is. The bug is that Radeon DDX
+imposes a hard limit on the number of CRTCs to 6. If you have a GPU
+that already has 6 (physical) CRTCs and if you add just one virtual CRTC,
+you will run over this limit and corrupt the data. So you should always
+run your system with this patch.
+
+
+b) Xorg patch
+-------------
+
+This patch will affect you if you are using Zaphod mode (multiple
+independent desktops), but we recommend that you apply it anyway.
+It does not hurt non-Zaphod configurations and you will have a system
+that is consistent with ours so we can support you better if need be.
+The patch files are
+
+patches/0001-xfree86-workaround-for-Zaphod-mode-problem-with-VCRT.patch
+patches/0002-xfree86-add-some-handy-debug-messages.patch
+
+The bug is rather complicated and if you are interested you should read
+the commit message associated with 
+0001-xfree86-workaround-for-Zaphod-mode-problem-with-VCRT.patch
+
+After applying patches, you should rebuild and re-test your system
+before proceeding.
+
+Finally, we should mention one limitation. By default, ATI DDX will
+turn on 1D tiling for all screens. That will result in CTD drivers
+receiving a tiled frame buffer and would further require that the
+CTD driver understands tiling. At this time, both of our CTD drivers
+only understand linear (scanline) frame buffer, so you should turn
+the tiling off in your xorg.conf. We will later add tiling support
+and then you will be able to go back to tiled buffer.
+
+Since 1D tiling is the default, using X without xorg.conf will
+result in a messy looking screen on your CTD device (e.g your monitor
+attached to a DisplayLink dongle). All examples that follow will
+include turning off the tiling support in your GPU driver.
+
+9. Example Configurations
+=========================
+
+We are finally ready to do something good with VCRTCM. We will
+walk through a few examples to give you the flavor of what you can
+do. This will give you enough information to setup your own system
+the way you want. If you come up with an example that you think
+is worth including in this document, please send it to us.
+
+We will assume that you have at least one virtual CRTC in your
+system and that you are using a DisplayLink device as your CTD
+and that the major device number of your CTD is 251. Extrapolating
+the examples to other CTD should be straight forward.
+
+We will also assume that your GPU is in PCI slot that maps to
+bus number 4 (so the full PCI address of your GPU is 4:0:0,
+that is bus 4, device 0, function 0). You should check that with
+'lspci' command and adjust the example xorg.conf files accordingly.
+
+Finally, we will assume that your GPU is known to the system
+as /dev/dri/card0. If you have multiple GPUs in your system,
+and you want to use some other card, you should adjust the examples
+accordingly.
+
+As we go through examples we will also explain a few details
+about our system that you should understand.
+
+a) Trivial example
+------------------
+
+This example does not really use virtual CRTC, but instead it
+attaches a CTD device to a physical CRTC. This is also a legitimate
+configuration and can be useful in some instances. Essentially,
+it will create a copy of your desktop on your DisplayLink device.
+
+In a perfect world, you would not need xorg.conf at all for this
+example, but until we work out a few things on our TODO list, you
+need it. Specifically, you need it to turn off the tiling
+and to set the resolution correctly. The former has been explaned
+before; the latter deserves some more explanation. Namely, VCRTCM
+does not yet support probing the CTD device available modes. Instead
+virtual CRTCs hard-code a few commonly used modes and if the CTD
+device cannot handle what a virtual CRTC offers, it will refuse
+to attach. We will fix this limitation in the future, but in the
+meantime you will be better off specifying your own modes in
+xorg.conf rather than relying of "fake" probing (which will work
+in some cases, though).
+
+Using the config_examples/xorg.conf_simple file, start XDM and log
+in. You should be in a single-screen session and you should see your
+desktop. Your DisplayLink device (assuming that it is connected)
+is should display blue screen.
+
+Now attach it to CRTC-0:
+
+$ radeon_vcrtcm_ctl attach /dev/dri/card0 0 251
+
+In the above example, 251 is the major device number and 0 is the
+CRTC number.
+
+Now start the transmission at 30 frames per second on your DisplayLink
+device.
+
+$ radeon_vcrtcm_ctl fps /dev/dri/card0 0 30
+
+You should see your desktop replicated to your main monitor
+(connected to your GPU's DVI port) as well as to your DL monitor.
+You can open a terminal window and start glxgears. You will immediately
+notice that the frame rate reported is that of your primary monitor
+(typically 60 fps) and that the movements on your DL monitor are
+not very smooth. This is because glxgears synchronizes to your
+primary monitor and the "sampling rate" of your CTD device is
+mismatched both in frequency and phase.
+
+Now increase the transmission rate to 60 fps (or whatever matches your
+monitor)
+
+$ radeon_vcrtcm_ctl fps /dev/dri/card0 0 60
+
+The movements will become smoother, but you will still notice some
+"hickups" because CTD device is still running asynchronously from
+your monitor. 
+
+This assumes that you don't have any bottlenecks in your system, such
+as slow memory bus, PCI Express bus, USB bus or just a slow machine. Note
+that UDLCTD driver runs the compression and transmission to USB bus
+in software, so you need a decent machine. Also some (older) GPUs
+may not be able to fully utilize the PCI Express bus bandwidth and
+some older motherboards may backpressure you on the memory bus.
+We probably should not mention what would happen if your USB
+interface falls back to USB 1.x ;-). If you have one of these
+problems, try lowering your resolution.
+
+The data flow in your system looks something like this:
+
+Framebuffer0 ---> CRTC-0 -+-> Encoder0 ---> Connector0 ---> Monitor0
+                          |
+                          +-> VCRTCM ---> UDLCTD ---> USB ---> Monitor1
+
+Your GPU and your windowing system has no idea that it's frame
+buffer is being scraped by the DisplayLink device and you are seeing
+a hardware-accelerated 3D application on your DisplayLink monitor
+(something you can't do with "stock" Linux distro), but this is
+still not demonstrating full power of virtual CRTCs. We will show
+more interesting examples later.
+
+You can now stop the transmission:
+
+$ radeon_vcrtcm_ctl stop /dev/dri/card0 0
+
+Notice that the application continues to run on your primary
+monitor. It's only the updates to your CTD devices that have stopped.
+
+Now you can detach
+
+$ radeon_vcrtcm_ctl detach /dev/dri/card0 0
+
+You can also detach the CTD device while the transmission is in
+progress, which will automatically stop the transmission.
+
+For fun sake, you can repeat the above exercise with the V4L2CTD
+driver. Attach the CRTC using major device number of your v4l2ctd
+module (explained earlier in this document) and start the transmission.
+You should see a new /dev/videoN device appear after you modprobe
+v4l2ctd module. Open VLC or any other application that can access
+/dev/video device and you should see your desktop in a video player.
+
+
+b) Same (trivial) Example with Virtual CRTC
+-------------------------------------------
+
+In the previous example, we attached a CTD device to a physical CRTC.
+We will now repeat the above example (do not stop your application
+and do not close your desktop yet), but with a virtual CRTC.
+
+Namely, Xorg has the property that it tries to use all usable CRTC
+devices in the system. With the xorg.conf_simple, you are in a
+single-screen mode and all CRTCs (physical or virtual) are associated
+with the same frame buffer and all rendering (actually compositing)
+for your (one and only) desktop targets that same frame buffer.
+So, we can achieve the same visual effect by attaching to one of the
+virtual CRTCs (assumption is that you booted up your system
+with at least one virtual CRTC created).
+
+In other words, we will make the data flow look like this:
+
+Framebuffer0 -+-> CRTC-0 ---> Encoder0 ---> Connector0 ---> Monitor0
+              |
+              +-> CRTC-N ---> VCRTCM ---> UDLCTD ---> USB ---> Monitor1
+
+Where N is the number that corresponds to your virtual CRTC.
+
+Before we show the radeon_vcrtcm_ctl commands (which you should be
+able to figure out) we need to explain how to figure out the value of N.
+That depends on your GPU. Most r6xx and r7xx have two CRTCs, so on these
+GPUs, CRTCs 0 and 1 will be physical CRTCs and the first virtual CRTC
+will be CRTC-2. On most Evergreen and Northern Islands GPUs, the first
+virtual CRTC will be CRTC-6, because these GPUs have 6 physical CRTCs.
+However, some have 4 CRTCs, so you should check.
+
+This is where patches/0002-xfree86-add-some-handy-debug-messages.patch
+may come handy, assuming that you have applied it to Xorg before
+installing it. If you did, you can open Xorg.0.log file that was created
+when you started XDM and look for a line that reads:
+
+[   149.629] (II) RADEON(0): Crtcs offered for screen
+
+After that line there should be a few lines with some cryptic
+hex numbers. These are CRTC pointers. The number of these
+lines corresponds to the total number of CRTCs in your system.
+
+In our example, we are using a Radeon HD5570 (Evergreen) GPU and
+we have created 4 virtual CRTCs (we know it from the boot line).
+Our Xorg.0.log file shows 10 lines with CRTC pointers:
+
+
+[   149.629] (II) RADEON(0):   0x96a64d8
+[   149.629] (II) RADEON(0):   0x96a7588
+[   149.629] (II) RADEON(0):   0x96a8638
+[   149.629] (II) RADEON(0):   0x96a96e8
+[   149.629] (II) RADEON(0):   0x96aa798
+[   149.629] (II) RADEON(0):   0x96ab848
+[   149.629] (II) RADEON(0):   0x96ac8f8
+[   149.629] (II) RADEON(0):   0x96ad9a8
+[   149.629] (II) RADEON(0):   0x96aea58
+[   149.629] (II) RADEON(0):   0x96afb08
+
+So we know that the 4 out of these 10 are virtual and others are physical.
+Therefore, the first virtual CRTC is CRTC-6 and the commands to attach
+and start the transmission are:
+
+$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 251
+$ radeon_vcrtcm_ctl fps /dev/dri/card0 6 60
+
+Visually this example will look the same, but you should understand
+that it is conceptually different: you are attached to a different
+CRTC and it only happened (due to the configuration) that Xorg is
+using that CRTC for the frame buffer used by your primary (and only)
+screen.
+
+While we are at it, we should examine Xorg.0.log a little more. Also
+assuming that you have applied
+patches/0002-xfree86-add-some-handy-debug-messages.patch
+you should see these lines in your log file:
+
+[   149.629] (II) RADEON(0): Outputs used for this screen: output, crtc
+[   149.629] (II) RADEON(0):   HDMI-0, (nil)
+[   149.629] (II) RADEON(0):   DVI-0, 0x96a64d8
+[   149.629] (II) RADEON(0):   VGA-0, (nil)
+[   149.629] (II) RADEON(0):   DisplayPort-0, 0x96ac8f8
+[   149.629] (II) RADEON(0):   DisplayPort-1, 0x96ad9a8
+[   149.629] (II) RADEON(0):   DisplayPort-2, 0x96aea58
+[   149.629] (II) RADEON(0):   DisplayPort-3, 0x96afb08
+
+Depending on the actual connectors that your GPU has and depending
+on where your monitor is connected, your actual lines may be slightly
+different, but still similar to the above. In our example (which is
+for Radeon HD5570 card from Sapphire), first three connectors are physical
+connectors of our GPU. The DVI-0 connector has the monitor
+connected to it so it has the CRTC as well. Other two connectors
+don't have the CRTC because they are not connected. The four DisplayPort-N
+connectors are due to the virtual CRTC. When a virtual CRTC is
+created, the system does not only see the new CRTC, but also a new
+virtual connector and a new virtual encoder.
+
+For a virtual connector, we use DisplayPort type (it's an AMD/ATI
+proprietary interface that can be adapted to various other
+ports using a special dongle). The associated encoder is a special
+encoder that we call Virtual Encoder (and it does nothing other than
+logically connecting a virtual CRTC with the virtual connector). The
+virtual connector is always connected and the only possible CRTC
+for this connector is a the virtual CRTC for which the connector
+was created (unlike physical CRTCs, virtual CRTCs cannot be arbitrarily
+switched around different connectors). For GPUs that don't have
+physical DisplayPort connectors, the first virtual connector is
+DisplayPort-0. For Systems that have N DisplayPort connectors,
+DisplayPort-0 through N-1 will be physical, while DisplayPort-N
+and above will be virtual. This is important to understand, because in
+examples to follow we will be referring to particular connectors in
+xorg.conf files. If this has confused you more than it helped,
+you should read this blog post: http://www.botchco.com/agd5f/?p=51
+
+
+c) One Physical and one Virtual CRTC in Zaphod Mode
+---------------------------------------------------
+
+Now we are getting to more interesting examples. In this example we
+will create two independent desktops, where one will be on a physical CRTC,
+while the other will be on a virtual CRTC. This is called Zaphod mode,
+named after Zaphod Beeblebrox, from Douglas Adams's books who was a guy
+who surgically had the second head attached to his body because he thought 
+it was cool (you probably already know that, because if you are
+geeky enough to set up VCRTCM on your system, you should be geeky
+enough to have read the HHGTTG).
+
+To use this mode, use file xorg.conf_zaphod_example, but unless your GPU
+has identical connectors and the same number of CRTCs that the GPU this
+file was written for is using, you may have to customize it. So first
+let us explain how to do that. We want to create a two-desktop
+configuration in which one desktop is on the monitor connected to the
+local DVI port of your GPU and the other desktop is on the monitor
+connected to the DisplayLink dongle. Needless to say, we want GPU hardware
+acceleration on both desktops.
+
+First you must know how many physical CRTCs your GPU. Then you must
+create the number of "Monitor" sections that equals the sum of the number
+of physical CRTCs that your GPU has and the number of virtual CRTCs that
+you want to use. Even if you don't want to use some physical
+CRTCs, you must "refer" to them in xorg.conf. Otherwise X will try to use
+the first unused physical CRTC in place of your virtual CRTC.
+This is part of the workaround that we addressed with 
+patches/0001-xfree86-workaround-for-Zaphod-mode-problem-with-VCRT.patch
+You *must* have this patch applied for Zaphod mode to work.
+For virtual CRTCs, it is OK to have more than you want to use.
+They will be used in order of references in xorg.conf file.
+
+In our example, the GPU has 6 physical CRTCs (we want to use one of them)
+and we want to use one virtual CRTC, so we have 7 "Monitor" sections
+(called "Monitor 0" through "Monitor 6"). We will only end up using 
+"Monitor 0" and "Monitor 6", but we have to have 1 through 5 as part of
+the Xorg bug workaround.
+
+Next, you must create GPU instances ("Device" sections). You need one
+for each physical CRTC that you have (regardless of whether you use it or
+not) and one for each virtual CRTC that you want to use. The ones that we
+will actually use must be directed to a port with a monitor. So instance
+"GPU 0" is directed to port "DVI-0".
+
+Instances that we don't want to use but have to refer to them so that the
+CRTC counter in Zaphod mode gets to the correct for a virtual CRTC
+are listed next as instances "GPU 1 through GPU 5". You should direct them
+to some unused port, so a good choice is some unused port. In our example,
+we direct it to a VGA port of our GPU.
+
+Finally, we get to the GPU instance that will be associated with a
+virtual CRTC, that is CRTC-6. As discussed before, the connector for
+a virtual CRTC is always a DisplayPort connector. Since our GPU does
+not have any real DisplayPort connectors, DisplayPort-0 is the
+virtual one. Therefore, we associate this GPU instance with DisplayPort-0
+connector.
+
+You should also make sure that BusID in your "Device" sections matches
+the PCI Express slot in which your GPU resides and don't forget to
+turn off the color tiling (at least for virtual CRTCs). Color tiling
+can be turned on for displays that are used by physical CRTCs, so the
+"off" option is not necessary for GPU0 through GPU5.
+
+Now we have to associate GPU instances with Monitors, in "Screen" sections.
+That is fairly straightforward. We need seven sections, one for each 
+Screen/Device pair. This is also the place to force the resolution
+if necessary. We let the physical CRTC/Connector probe it, and we force
+it on the virtual CRTC/Connector. As explained earlier, probing on virtual
+connectors is incomplete at this time. It will work for you only if your
+CTD device accepts *one* of the modes listed in radeon_virtual_crtc_get_modes()
+in the kernel tree (in the DisplayLink case, that means that both your
+dongle and the monitor must accept one of the listed modes).
+
+Finally, we need to create the screen layout. Note that we must refer
+to all screens, but only the ones we use, are actually put somewhere.
+Others are sort-of floating in the air.
+
+When you customize your own xorg.conf, you will probably end up with
+a very similar file, except that it will differ in the number
+of "fake" entries (if your GPU has fewer physical CRTCs) and that your
+DisplayPort associated with a virtual connector may not be zero (if your
+GPU has real DisplayPort connectors).
+
+Now you are ready to try this out, so start your XDM session. The login
+screen will be on your physical CRTC.
+
+You can attach and start the transmission either before you log in
+or after you log in (or even before you start the XDM session), although
+you will see nothing interesting on a virtual display until you log in.
+To attach and start the transmission, you should type:
+
+$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 251
+$ radeon_vcrtcm_ctl fps /dev/dri/card0 6 60
+
+After you log in, you will see two desktops and you can move the mouse
+from one to the other and start some applications. Your virtual display
+(DisplayLink) will be to the right of your physical one. Move the mouse
+there, open gnome terminal and start glxgears.
+
+You will notice that the frame rate is around 60 (there are some
+precision issues with accurately setting the fps rate, because we use
+the jiffies clock, which has relatively poor granularity) and movement
+should be smooth. Now reduce the frame rate to 30
+
+$ radeon_vcrtcm_ctl fps /dev/dri/card0 6 30
+
+You will see the frame rate reported by glxgears drops down to 30. This
+is because this time the application is synchronized with VBlanks
+generated by the CTD device. UDLCTD uses jiffies counter and kworker thread
+to generate VBlanks, so their precision is limited to the precision
+of the counter. Hopefully you are using CONFIG_HZ_1000 for your kernel
+(otherwise the precision would be quite bad).
+
+After playing around. You should be able to run full screen applications
+including games, like OpenArena and the like, you can stop the transmission,
+detach and move on to the next example.
+
+d) One Desktop with one Physical and one Virtual CRTC
+-----------------------------------------------------
+
+In the next example, you will create one big desktop that
+spans across two CRTCs. The left part of the desktop will be
+on the monitor attached to the local DVI port of your GPU,
+while the right part of the desktop will be on a CTD device
+(DisplayLink monitor in this example). The configuration
+to use is config_examples/xorg.conf_big_desktop. After a little
+examination, it should be straight forward to figure out what
+it is doing and how. Unlike Zaphod mode, there is only one GPU
+instance and "Monitor" sections are associated with the
+GPU by using an option "monitor-CONNECTOR_NAME". As you have
+probably guessed connectors are DVI-0 and DisplayPort-0
+(this is something you may want to customize, especially if
+your GPU has some real DisplayPort connectors). Also,
+the relative location of your CRTCs on your big desktop
+is defined in "Monitor" sections. The rest should be clear.
+
+So start your XDM session, attach your CTD device and start
+the transmission.
+
+$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 251
+$ radeon_vcrtcm_ctl fps /dev/dri/card0 6 30
+
+Set the frame rate of the something different from the refresh
+rate of the monitor that is attached to your DVI port so that you
+can see one interesting detail (in this example, we set it to 30 fps
+and our DVI port runs at 60 fps).
+
+Now open a terminal window and start glxgears. Window manager will
+open it where it finds free space, so it can be either in your physical
+or virtual screen area. Notice that the frame rate is synchronized
+with the frame rate of the CRTC in which the window is. Select the
+glxgears window and move it to your other screen.
+
+Aside from the fact that you have just moved the hardware-accelerated
+OpenGL application from your local screen to a screen that it outside
+your GPU and that it continued to run normally (which alone is
+interesting), notice that the frame rate reported by glxgears has
+changed to the one associated with the new CRTC. Your windowing
+system has figured out that the window has moved to a new CRTC and
+switched to synchronizing to new the new source of VBlanks.
+
+10. Random Notes
+================
+
+In this section, we bundle a few random notes that you should
+be aware of, and that didn't find a "home" in other sections.
+
+a) Performance of high-end devices
+----------------------------------
+
+If you are one of the lucky ones with a really high-end GPU
+you should read this message on dri-devel mailing list:
+
+http://lists.freedesktop.org/archives/dri-devel/2011-October/015225.html
+
+The author of this document (Ilija) posted this message along
+with a bunch of patches that improved blit performance (the patches
+have been merged into 3.2-rc1 kernel and should be available in
+all distributions soon). VCRTCM relies on blit-copy to access the
+frame buffer. The disappointing news is that that super-hot
+Cayman actually underperforms some lower-end devices when it comes
+to blit-copy. It's is a powerful rendering machine, but accessing
+the frame buffer is a typical example of how too much parallelism
+can hurt.
+
+So in the end, you may be better off with some lower-end device because
+you are really looking for a tradeoff between rendering capabilities
+and blit-copy performance.
+
+b) Abusing the DisplayPort connector
+------------------------------------
+
+"Stealing" DisplayPort connector type for virtual CRTCs is not the
+most fortunate and somewhat abusive. Someone could argue that we
+should have introduced our own connector type, called "VirtualPort"
+or something along those line.
+
+We agree, but the problem is that the introduction of new connector
+tupe would ripple up to DRM kernel module, libdrm and probably DDX and
+Xorg and we wanted to limit the number of modules that we have to modify.
+So far we have been quite successful in limiting all our "intrusive"
+modifications to the existing code to the GPU driver (radeon kernel module). 
+Everything else is a new code in separate modules.
+
+This approach makes is easier to track the mainline development of DRI.
+We should  keep it that way for as long as VCRTCM remains out-of-tree
+development that needs to track the upstream development
+
+c) Need for an unused port in Zaphod mode
+-----------------------------------------
+
+Some Zaphod configurations may need an unused physical port to direct
+"fake" GPU instances to them. This may be an issue if all physical
+ports are used, but at this time we have no choice but to live with it.
+
+The correct fix would be to fix Xorg CRTC selection algorithm to actually
+work in Zaphod mode, but that is a lot of work (and we probably won't
+get to it soon). A possible augmentation to the workaround is to add
+hack the GPU driver to register another "dump" with DRM for this purpose.
+We may add this in the future, but you can also achieve the same effect
+by creating one extra virtual CRTC and use its DisplayPort-N as a "dump"
+port.
+
+d) The screen on my DisplayLink monitor went red (or blue)
+----------------------------------------------------------
+
+If you are using UDLCTD driver and you see a red screen, don't panic.
+It's our inicator that UDLCTD driver didn't like something. This typically
+happens if it is forced into a mode that it can't handle. If that
+happens, the transmission will be shut off, but no damage will be done.
+Once you fix the culprit (whatever is forcing it into a incompatible
+resolution), you can re-enable the transmission with 'radeon_vcrtcm_ctl fps'
+command. While we are at it, blue screen is totally benign. It is
+a default content that we put out when the module loads. So you will
+see the blue screen between the module load and the CTD attach/fps
+ioctl.
+
+
+e) what else ???
+----------------
+
+... TODO ...
+
+
+11. Reporting Bugs and Contributing
+===================================
+
+We hope to soon have the mailing list in place. In the mean time
+you can report bugs or send patches to the primary author or this
+document, Ilija Hadzic.
+
+He can be reached at
+
+ihadzic at research dot bell dash labs dot com
+
+OR 
+
+ilijahadzic at gmail dot com
+
+You can also use Github's bug reporting system or if you are on github
+you can send us your pull requests.
+
+We also follow dri-devel mailing list. Whether you want to include that
+list in your VCRTCM-related questions and comments is your choice and
+use your own judgement. General discussion about usefulness of VCRTCM
+for DRI community are probably appropriate for CC. Specific questions
+about setting up your system to use VCRTCM are probably better off
+to be directed to us (unless VCRTCM is accepted upstream in the meantime).
+
+At the time of this writing we have not yet announced the availibility
+of VCRTCM code to dri-devel list, but we plan to do so. At the time
+of your reading will will have already announced it and we suspect that
+the way you got this document would be by seeing an announcement there
+(we don't expect you to just stumble upon us on Github). We hope that we
+will spark some interesting discussions and that our contributions will be
+useful.
+
+
+12. Acknowledgements
+====================
+
+The authors thank everyone on dri-devel mailing list for taking
+their time to answer our questions and review many of our patches
+and in general help us understand the DRI code.
+
+Special thanks to Alex Deucher, the principal developer of Radeon
+GOU driver whose generous support helped us understand not only the
+driver, but also the big picture of Linux DRI.

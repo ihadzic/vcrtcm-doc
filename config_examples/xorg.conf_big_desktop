@@ -1,0 +1,38 @@
+Section "Monitor"
+	Identifier   "Monitor 0"
+	Option "Primary" "True"
+EndSection
+
+Section "Monitor"
+	Identifier   "Monitor 1"
+	Option "Primary" "False"
+	Option "RightOf" "Monitor 0"
+EndSection
+
+Section "ServerFlags"
+        Option "DRI2"
+EndSection
+
+Section "Device"
+	Identifier      "GPU 0"
+	Driver          "radeon"
+	Option		"colortiling" "off"
+	Option          "AccelMethod"    "EXA"
+	Option          "monitor-DVI-0"  "Monitor 0"
+	Option          "monitor-DisplayPort-0"  "Monitor 1"
+	BusID           "PCI:4:0:0"
+EndSection
+
+Section "Screen"
+	Identifier   "Screen 0"
+	Device       "GPU 0"
+	Monitor      "Monitor 0"
+	SubSection   "Display"
+		Modes "1680x1050"
+	EndSubSection
+EndSection
+
+Section "ServerLayout"
+	Identifier   "Layout 1"
+	Screen       "Screen 0"
+EndSection

@@ -1,0 +1,26 @@
+Section "Monitor"
+	Identifier   "Monitor 0"
+	Option "Primary" "True"
+EndSection
+
+Section "Device"
+	Identifier      "GPU 0"
+	Driver          "radeon"
+	Option		"ColorTiling"    "off"
+	Option          "AccelMethod"    "EXA"
+	BusID           "PCI:4:0:0"
+EndSection
+
+Section "Screen"
+	Identifier   "Screen 0"
+	Device       "GPU 0"
+	Monitor      "Monitor 0"
+	SubSection   "Display"
+		Modes "1680x1050"
+	EndSubSection
+EndSection
+
+Section "ServerLayout"
+	Identifier   "Layout 1"
+	Screen       "Screen 0" 
+EndSection

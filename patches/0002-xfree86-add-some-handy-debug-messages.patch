@@ -1,0 +1,40 @@
+From 6a62de3c91332871808608692f20dc42a6e9ba1d Mon Sep 17 00:00:00 2001
+From: Ilija Hadzic <ihadzic@research.bell-labs.com>
+Date: Tue, 1 Nov 2011 12:01:53 -0400
+Subject: [PATCH 2/2] xfree86: add some handy debug messages
+
+it is useful to know which CRTC got assigned to which
+screen and which CRTCs were offered for which screen,
+so add some debug messages
+
+Signed-off-by: Ilija Hadzic <ihadzic@research.bell-labs.com>
+---
+ hw/xfree86/modes/xf86Crtc.c |   12 +++++++++++-
+ 1 files changed, 11 insertions(+), 1 deletions(-)
+
+diff --git a/hw/xfree86/modes/xf86Crtc.c b/hw/xfree86/modes/xf86Crtc.c
+index f176ea4..5726676 100644
+--- a/hw/xfree86/modes/xf86Crtc.c
++++ b/hw/xfree86/modes/xf86Crtc.c
+@@ -2450,7 +2450,17 @@ xf86InitialConfiguration (ScrnInfoPtr scrn, Bool canGrow)
+      */
+     if (have_outputs && !xf86PickCrtcs (scrn, crtcs, modes, 0, width, height))
+ 	goto bailout;
+-    
++
++    xf86DrvMsg(scrn->scrnIndex, X_INFO, "Crtcs offered for screen\n");
++    for (c = 0; c < config->num_crtc; c++)
++	xf86DrvMsg(scrn->scrnIndex, X_INFO, "  %p\n", config->crtc[c]);
++
++    xf86DrvMsg(scrn->scrnIndex, X_INFO,
++	       "Outputs used for this screen: output, crtc\n");
++    for (o = 0; o < config->num_output; o++)
++	xf86DrvMsg(scrn->scrnIndex, X_INFO,
++		   "  %s, %p\n", config->output[o]->name, crtcs[o]);
++
+     /* XXX override xf86 common frame computation code */
+     
+     scrn->display->frameX0 = 0;
+-- 
+1.7.4.1
+

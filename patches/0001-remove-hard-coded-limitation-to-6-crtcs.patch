@@ -1,0 +1,46 @@
+From 7fb714de7836a028f38fa607677569a5770c5946 Mon Sep 17 00:00:00 2001
+From: Ilija Hadzic <ihadzic@research.bell-labs.com>
+Date: Thu, 2 Jun 2011 09:38:35 -0400
+Subject: [PATCH] remove hard-coded limitation to 6 crtcs
+
+possible_crtcs mask should assume 32 crtcs because all other
+data structures in the ddx assume this; also cursor_bo array
+should be length of 32 to make it consistent with everything else
+
+now DDX can deal with up to 32 crtcs
+
+Signed-off-by: Ilija Hadzic <ihadzic@research.bell-labs.com>
+---
+ src/drmmode_display.c |    2 +-
+ src/radeon.h          |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/drmmode_display.c b/src/drmmode_display.c
+index afa4c26..2adb717 100644
+--- a/src/drmmode_display.c
++++ b/src/drmmode_display.c
+@@ -1011,7 +1011,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num, int *num_dv
+ 	output->doubleScanAllowed = TRUE;
+ 	output->driver_private = drmmode_output;
+ 	
+-	output->possible_crtcs = 0x7f;
++	output->possible_crtcs = 0xffffffff;
+ 	for (i = 0; i < koutput->count_encoders; i++) {
+ 		output->possible_crtcs &= kencoders[i]->possible_crtcs;
+ 	}
+diff --git a/src/radeon.h b/src/radeon.h
+index f66ffd0..71a00ed 100644
+--- a/src/radeon.h
++++ b/src/radeon.h
+@@ -1066,7 +1066,7 @@ typedef struct {
+     struct radeon_cs_manager *csm;
+     struct radeon_cs *cs;
+ 
+-    struct radeon_bo *cursor_bo[6];
++    struct radeon_bo *cursor_bo[32];
+     uint64_t vram_size;
+     uint64_t gart_size;
+     drmmode_rec drmmode;
+-- 
+1.7.4.1
+
