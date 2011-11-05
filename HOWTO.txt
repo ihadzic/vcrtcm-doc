@@ -724,16 +724,16 @@ connectors are due to the virtual CRTC. When a virtual CRTC is
 created, the system does not only see the new CRTC, but also a new
 virtual connector and a new virtual encoder.
 
-For a virtual connector, we use DisplayPort type (it's an AMD/ATI
-proprietary interface that can be adapted to various other
-ports using a special dongle). The associated encoder is a special
-encoder that we call Virtual Encoder (and it does nothing other than
-logically connecting a virtual CRTC with the virtual connector). The
-virtual connector is always connected and the only possible CRTC
-for this connector is a the virtual CRTC for which the connector
-was created (unlike physical CRTCs, virtual CRTCs cannot be arbitrarily
-switched around different connectors). For GPUs that don't have
-physical DisplayPort connectors, the first virtual connector is
+For a virtual connector, we use DisplayPort type (it's an interface
+that can be adapted to various other ports using a special dongle;
+see http://en.wikipedia.org/wiki/DisplayPort for more info).
+The associated encoder is a special encoder that we call Virtual Encoder
+(and it does nothing other than logically connecting a virtual CRTC with
+the virtual connector). The virtual connector is always connected and the
+only possible CRTC for this connector is a the virtual CRTC for which the
+connector was created (unlike physical CRTCs, virtual CRTCs cannot be
+arbitrarily switched around different connectors). For GPUs that don't
+have physical DisplayPort connectors, the first virtual connector is
 DisplayPort-0. For Systems that have N DisplayPort connectors,
 DisplayPort-0 through N-1 will be physical, while DisplayPort-N
 and above will be virtual. This is important to understand, because in
