@@ -904,6 +904,50 @@ changed to the one associated with the new CRTC. Your windowing
 system has figured out that the window has moved to a new CRTC and
 switched to synchronizing to new the new source of VBlanks.
 
+
+e) Single Desktop with Virtual CRTC Only
+----------------------------------------
+
+In this example, we will run X whose only screen is on a CTD device
+(headless system). To do that go back to config_examples/xorg.conf_simple
+and yank out all monitor cables from your GPU. Leave the DisplayLink monitor
+connected (assuming that UDLCTD is your CTD device).
+
+At this point you are probably wondering where your text console
+(e.g. fbcon) will go. The answer is to CTD device, but you must
+enable this in the GPU driver. By default fbcon on a virtual CRTC is
+disabled because the code is still "fresh", but it should work.
+However in a headless system, you will need to enable this option
+so that fbcon would have something to bind to.
+You must boot the kernel with radeon.fb_virt_crtc=1 parameter.
+
+So change your boot line accordingly and reboot your system
+and let it come up. Of course you don't see anything on your screen because
+your CTD has not been attached yet. So you need a second machine to ssh from,
+unless you are really good at typing blindly.
+
+Once you get onto your target machine, attach the CTD and start the
+transmission:
+
+$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 251
+$ radeon_vcrtcm_ctl fps /dev/dri/card0 6 60
+
+If your system starts XDM automatically, you should see the XDM login
+screen show up on your CTD. If not, you will see fbcon login. 
+Start XDM at this point (or play with text console on your CTD device
+a little, as you wish). Now log in and enjoy your session that uses
+your GPU for rendering only and a foreign device for display (CTRL-ALT-F<N> 
+also works, so try it).
+
+To make the system really headless and see the boot messages as soon
+as the fbcon is started, you will have to put the attach/fps commands
+somewhere in your boot scripts. If you come up with something, please
+share.
+
+Note that if you are using DisplayLink CTD that there are some
+known issues with modes so you may end up with the red screen.
+If that happens, see the next section for troubleshooting.
+
 10. Random Notes
 ================
 
