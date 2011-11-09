@@ -1019,7 +1019,17 @@ happens if it is forced into a mode that it can't handle. If that
 happens, the transmission will be shut off, but no damage will be done.
 Once you fix the culprit (whatever is forcing it into a incompatible
 resolution), you can re-enable the transmission with 'radeon_vcrtcm_ctl fps'
-command. While we are at it, blue screen is totally benign. It is
+command. The most likely culprit is the fact that at this time
+we GPU can't query the attached CTD device for supported modes.
+Instead GPU makes up some commonly used modes and tries to
+force them upon the CTD device. If UDLCTD can't handle the
+forced mode it will turn the screen red. This will be fixed soon, but
+as a temporary workaround, you can edit the common_modes array in
+drivers/gpu/drm/radeon/radeon_virtual_crtc.c file to remove the
+offending modes and recompile the kernel. That will get you going
+until we add the "CTD mode query" feature.
+
+While we are at it, blue screen is totally benign. It is
 a default content that we put out when the module loads. So you will
 see the blue screen between the module load and the CTD attach/fps
 ioctl.
