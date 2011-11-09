@@ -1029,5 +1029,5 @@ their time to answer our questions and review many of our patches
 and in general help us understand the DRI code.
 
 Special thanks to Alex Deucher, the principal developer of Radeon
-GOU driver whose generous support helped us understand not only the
+GPU driver whose generous support helped us understand not only the
 driver, but also the big picture of Linux DRI.
