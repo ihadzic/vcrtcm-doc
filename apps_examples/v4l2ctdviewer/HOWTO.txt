@@ -1,0 +1,59 @@
+Copyright (c) 2010, Alcatel-Lucent, Inc., Bell Laboratories
+
+Authors:
+  Chris Woithe and Ilija Hadzic
+
+This directory contains v4l2ctdviewer application that will open
+/dev/video0 device and display its content in an X window.
+If your /dev/video0 device node is associated with a v4l2ctd device
+you will see the frame buffer associated with a virtual CRTC.
+
+Note that this is just a quick example and you should customize it
+to suit your needs (or make it more universal). For example the use of
+/dev/video0 is hard coded, so if you have a webcam and your v4l2ctd
+ends up on /dev/video1, you must hack up the code. If you make this
+application better, please submit patches back to us.
+
+Instructions:
+=============
+
+1) Make sure you have read the main HOWTO.txt document and learned how to
+   setup your system and make virtual CRTCs working.
+
+2) Compile v4l2ctdviewer in this directory (type 'make').
+
+3) Create your favorite desktop configuration.
+
+4) Load (modprobe) v4l2ctd driver.
+
+5) Attach v4l2ctd device to the desired CRTC and start the transmission
+   (set the frame rate to 30 to get a reasonably responsive system).
+
+6) Run v4l2ctdviewer.
+
+A window should open and show the content of your virtual CRTC.
+
+
+What is this good for
+=====================
+
+The primary purpose of this example is to show how to write your
+own application that uses v4l2ctd driver, so you can use the code
+here as a reference.
+
+If you setup your system in Zaphod mode (multiple independent desktops),
+v4l2ctdviewer will essentially give you an feature similar to what you
+can achieve with Xephyr or Xnest. The big difference here, is that
+VCRTCM is essentially a shortcut through kernel so there is much
+less data movement, so this should me more efficient.
+
+If you 'ssh -X' from a remote machine to a machine running a desktop
+with VCRTCM and then start v4l2ctd, then you have a remote display
+stack that looks approximately like this:
+
+server --> X11 ---> ssh ----> network ---> ssh ---> X11 ---> client
+
+The big difference is that your server gets to use the GPU in
+direct-rendering mode and nothing in the userland needs
+to be touched to make it work. Note that this only addresses the
+display part of the equation, input devices are outside the scope.
