@@ -1,0 +1,13 @@
+This is a documentation and examples repository for Virtual CRTC project.
+
+
+Directory structure:
+
+HOWTO.txt - primary instructions for setting up your system
+
+patches/         - various patches that you may need along the way
+                   (see HOWTO.txt for details)
+
+config_examples/ - configuration examples referred to in HOWTO.txt
+
+apps_examples/   - various application examples
