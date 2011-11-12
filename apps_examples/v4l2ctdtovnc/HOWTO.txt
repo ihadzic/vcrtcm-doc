@@ -1,0 +1,58 @@
+Copyright (c) 2010, Alcatel-Lucent, Inc., Bell Laboratories
+
+Authors:
+  Chris Woithe and Ilija Hadzic
+
+This directory contains v4l2ctdtovnc application that will open
+/dev/video<N> device and act as a simple VNC server. A VNC client
+can connect to it and view the content streamed by /dev/video<N>
+device. If your /dev/video<N> device node is associated with a
+v4l2ctd device, you will see the frame buffer associated with a
+virtual CRTC.
+
+The application takes two parameters: path to the device node file
+(/dev/video0, for example) and the frame rate used by the VNC server.
+Note that this frame rate can be different from the frame rate specified
+in 'fps' command when starting the VCRTC transmission. If the frame
+rate is different, either frame decimation or repetition will occur.
+
+Instructions:
+=============
+
+1) Make sure you have read the main HOWTO.txt document and learned how to
+   setup your system and make virtual CRTCs working.
+
+2) Make sure you have libvncserver library and that it supports multiple
+   thread (if you are using Gentoo distribution like us, make sure that
+   your USE variable includes threads and zlib).
+
+3) Compile v4l2ctdtovnc in this directory (type 'make').
+
+4) Create your favorite desktop configuration.
+
+5) Load (modprobe) v4l2ctd driver.
+
+6) Attach v4l2ctd device to the desired CRTC and start the transmission
+
+7) Run v4l2ctdtovnc. For example 'v4l2ctdtovnc /dev/video0 30' will
+   run the VNC server on /dev/video0 device at 30 frames per second
+   (depending on your network bandwidth and the speed of your machine,
+   you may need to lower the VNC frame rate)
+
+8) On a client machine, run VNC viewer and connect to your server machine.
+
+
+You will see the remote VNC desktop, but the difference here is that
+rendering is direct and fully accelerated, so you can run graphic-intensive
+application. Try to run Unigine Heaven or OpenArena. Then try to repeat
+that with xvnc, you'll get the point.
+
+What is this good for
+=====================
+
+The primary purpose of this example is to demonstrate how VNC can
+be used with VCRTCM while allowing the application to take
+full advantage of direct rendering. The server that runs in
+the user space is far from complete and intended for reference
+only. There is a lot of room for further development and improvements.
+If you improve this code, please send us your patches.
