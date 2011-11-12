@@ -44,7 +44,7 @@ Instructions:
 
 You will see the remote VNC desktop, but the difference here is that
 rendering is direct and fully accelerated, so you can run graphic-intensive
-application. Try to run Unigine Heaven or OpenArena. Then try to repeat
+application. Try to run some OpenGL applications on it. Then try to repeat
 that with xvnc, you'll get the point.
 
 What is this good for
