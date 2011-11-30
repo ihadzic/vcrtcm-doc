@@ -112,7 +112,7 @@ will hit the hard limit imposed by the DRM.
 3. Use Cases
 ============
 
-The usefulness of VRTCM architecture depends on what the available
+The usefulness of VCRTCM architecture depends on what the available
 CTDs do. We have currently released two CTD drivers. In this section
 we briefly described what you can do with them and and make your
 Linux box do some geeky things.
@@ -537,7 +537,7 @@ it will create a copy of your desktop on your DisplayLink device.
 In a perfect world, you would not need xorg.conf at all for this
 example, but until we work out a few things on our TODO list, you
 need it. Specifically, you need it to turn off the tiling
-and to set the resolution correctly. The former has been explaned
+and to set the resolution correctly. The former has been explained
 before; the latter deserves some more explanation. Namely, VCRTCM
 does not yet support probing the CTD device available modes. Instead
 virtual CRTCs hard-code a few commonly used modes and if the CTD
@@ -826,16 +826,18 @@ of "fake" entries (if your GPU has fewer physical CRTCs) and that your
 DisplayPort associated with a virtual connector may not be zero (if your
 GPU has real DisplayPort connectors).
 
-Now you are ready to try this out, so start your XDM session. The login
-screen will be on your physical CRTC.
-
-You can attach and start the transmission either before you log in
-or after you log in (or even before you start the XDM session), although
-you will see nothing interesting on a virtual display until you log in.
-To attach and start the transmission, you should type:
+Now you are ready to try this out. The assumption is that you have not
+started your XDM session yet and that you are looking at a boring framebuffer
+console (e.g. fbcon). To attach and start the transmission, you should type:
 
 $ radeon_vcrtcm_ctl attach /dev/dri/card0 6 251
 $ radeon_vcrtcm_ctl fps /dev/dri/card0 6 60
+
+The identical text console will appear on the screen associated with
+the virtual CRTC. Now, start your XDM session. The login screen will
+be on your physical CRTC and your other screen (virtual CRTC)
+will be dark. You can move the mouse cursor into it, so it's not that
+dark after all ;-). 
 
 After you log in, you will see two desktops and you can move the mouse
 from one to the other and start some applications. Your virtual display
@@ -859,6 +861,37 @@ of the counter. Hopefully you are using CONFIG_HZ_1000 for your kernel
 After playing around. You should be able to run full screen applications
 including games, like OpenArena and the like, you can stop the transmission,
 detach and move on to the next example.
+
+At this point you may be wondering whether it was necessary
+to call 'attach' and 'fps' before starting XDM or was the purpose of that
+just to show off the fbcon. The answer is that in this particular
+case it was necessary to call at least 'attach' before starting
+X. The reason is that a virtual CRTC without attached CTD device is
+treated as a disconnected connector. With xorg.conf used in this example,
+Xorg won't create a desktop on disconnected connector, so we had
+to make it connected by calling the attach (and if the CTD device
+is a DisplayLink dongle, you should have connected the monitor
+to it, because UDLCTD checks the monitor status and reports it to VCRTCM).
+
+You can change that behavior by setting radeon.conn_virt_crtc
+parameter to '1' at GPU driver load time. Note, however, that
+if you use this parameter to force virtual CRTCs into connected
+state, the GPU driver will "make up" the modes (resolutions).
+It will use a list of common modes instead of querying the
+attached CTD driver.
+
+If you keep the default behavior (virtual CRTCs disconnected
+when detached) you will have to call the attach before starting X
+in Zaphod mode. In other modes examples, implications may be
+different.
+
+If your system starts X automatically on boot and you want
+to use Zaphod mode without forcing virtual CRTCs in connected state, 
+then you should add loading of the CTD drivers that you need and
+calling the 'attach/fps' commands somewhere in your boot scripts.
+Ideally, this should be done through UDEV policy but we have not
+implemented that yet. 
+
 
 d) One Desktop with one Physical and one Virtual CRTC
 -----------------------------------------------------
@@ -890,6 +923,16 @@ rate of the monitor that is attached to your DVI port so that you
 can see one interesting detail (in this example, we set it to 30 fps
 and our DVI port runs at 60 fps).
 
+Here, it does not matter whether you attach the CTD before or
+after starting X. If you attach before starting X, Xorg will find
+both connectors you want to use in connected state and create one
+big desktop across two CRTCs as instructed by xorg.conf. If
+you attach after starting X, Xorg will initially start on a
+smaller desktop (because it will find the virtual CRTC in
+disconnected state). After you attach, it will see a hotplug
+event and RANDR will resize the desktop to a bigger one
+(this assumes that RANDR is working on your machine properly).
+
 Now open a terminal window and start glxgears. Window manager will
 open it where it finds free space, so it can be either in your physical
 or virtual screen area. Notice that the frame rate is synchronized
@@ -904,7 +947,6 @@ changed to the one associated with the new CRTC. Your windowing
 system has figured out that the window has moved to a new CRTC and
 switched to synchronizing to new the new source of VBlanks.
 
-
 e) Single Desktop with Virtual CRTC Only
 ----------------------------------------
 
@@ -915,16 +957,12 @@ connected (assuming that UDLCTD is your CTD device).
 
 At this point you are probably wondering where your text console
 (e.g. fbcon) will go. The answer is to CTD device, but you must
-enable this in the GPU driver. By default fbcon on a virtual CRTC is
-disabled because the code is still "fresh", but it should work.
-However in a headless system, you will need to enable this option
-so that fbcon would have something to bind to.
-You must boot the kernel with radeon.fb_virt_crtc=1 parameter.
+make sure that the driver loads with radeon.fb_virt_crtc parameter
+set to 1 (which is the default value).
 
-So change your boot line accordingly and reboot your system
-and let it come up. Of course you don't see anything on your screen because
-your CTD has not been attached yet. So you need a second machine to ssh from,
-unless you are really good at typing blindly.
+When you start booting up, you will not see anything on your screen
+because your CTD has not been attached yet. So you need a second machine
+to ssh from, unless you are really good at typing blindly.
 
 Once you get onto your target machine, attach the CTD and start the
 transmission:
@@ -941,12 +979,50 @@ also works, so try it).
 
 To make the system really headless and see the boot messages as soon
 as the fbcon is started, you will have to put the attach/fps commands
-somewhere in your boot scripts. If you come up with something, please
+somewhere in your boot scripts and probably write some
+UDEV rules to control it. If you come up with something, please
 share.
 
 Note that if you are using DisplayLink CTD that there are some
 known issues with modes so you may end up with the red screen.
 If that happens, see the next section for troubleshooting.
+
+f) Minimalistic xorg.conf and hotplug
+-------------------------------------
+
+The absolute minimum xorg.conf is the one that only tunrs tiling
+off and leaves everything to the system to detect. To try this out,
+use config_examples/xorg.conf_minimal.
+
+Start X without any CTD device attached and log in. You can check
+the status of virtual ports with xrandr (they will be disconnected).
+Now load a CTD driver and attach it:
+
+$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 251
+$ radeon_vcrtcm_ctl fps /dev/dri/card0 6 30
+
+This will cause a hotplug event in your system and RANDR will resize
+the desktop to include a newly arrived CRTC. When you detach
+
+$ radeon_vcrtcm_ctl detach /dev/dri/card0 6
+
+There will be a new hotplug event and the desktop will
+resize back to the smaller one.
+
+If you are using UDLCTD (DisplayLink) you can yank in and out the
+DVI side of the adapter and the behavior will be the same
+as if you are unplugging and plugging a regular port of your GPU.
+Desktop will be resizing back and forth as you do this.
+If you yank out the DisplayLink adapter on the USB side, 
+the desktop will resize back to small just as if you unplugged
+the monitor.
+
+If you plug the adapter back in on the USB side, hotplug will
+not occur. What is missing here is the UDEV policy that will
+call radeon_vcrtcm_ctl automatically and issue attach/fps
+commands. With the proper UDEV policy and a few scripts, you
+should be able to create a full hotplug experience.
+
 
 10. Random Notes
 ================
@@ -1019,15 +1095,14 @@ happens if it is forced into a mode that it can't handle. If that
 happens, the transmission will be shut off, but no damage will be done.
 Once you fix the culprit (whatever is forcing it into a incompatible
 resolution), you can re-enable the transmission with 'radeon_vcrtcm_ctl fps'
-command. The most likely culprit is the fact that at this time
-we GPU can't query the attached CTD device for supported modes.
+command. This problem is most likely to happen if you load the GPU 
+driver with conn_virt_crtc=1. In this case the GPU does not
+query the attached CTD device for supported modes.
 Instead GPU makes up some commonly used modes and tries to
 force them upon the CTD device. If UDLCTD can't handle the
-forced mode it will turn the screen red. This will be fixed soon, but
-as a temporary workaround, you can edit the common_modes array in
-drivers/gpu/drm/radeon/radeon_virtual_crtc.c file to remove the
-offending modes and recompile the kernel. That will get you going
-until we add the "CTD mode query" feature.
+forced mode it will turn the screen red. If you load the GPU
+driver conn_virt_crtc=0 (default) the invalid mode is
+less likely to happen. 
 
 While we are at it, blue screen is totally benign. It is
 a default content that we put out when the module loads. So you will

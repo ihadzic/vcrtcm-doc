@@ -1,0 +1,5 @@
+Section "Device"
+	Identifier	"GPU 0"
+	Driver          "radeon"
+	Option		"colortiling" "off"
+EndSection
