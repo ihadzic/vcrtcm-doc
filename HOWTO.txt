@@ -1023,6 +1023,30 @@ call radeon_vcrtcm_ctl automatically and issue attach/fps
 commands. With the proper UDEV policy and a few scripts, you
 should be able to create a full hotplug experience.
 
+g) Putting it in perspective ... literally
+------------------------------------------
+
+Here is a useless, but interesting example. This time we will
+use the v4l2ctd driver to create an interesting visual effect.
+As mentioned before, it is possible to attach a CTD device
+to a physical CRTC. So what you will do in this example, is
+attach a v4l2ctd driver to CRTC-0, which will be the CRTC of your
+primary monitor. Then you will open VLC and view your primary
+desktop in it ... on your primary desktop. What will happen?
+Give it a try:
+
+$ sudo modprobe v4l2ctd
+$ radeon_vcrtcm_ctl attach /dev/dri/card0 0 251
+$ radeon_vcrtcm_ctl fps /dev/dri/card0 0 30
+$ vlc v4l2:///dev/video0
+
+Enjoy the show. Resize the VLC window and move things
+around to create all kinds of visual effects. Start some OpenGL
+applications (games too) in windows (make them small enough
+to not cover the whole desktop) and place them around. Move
+them around. If you are running Compiz, turn on some desktop
+effects for better experience.
+
 
 10. Random Notes
 ================
