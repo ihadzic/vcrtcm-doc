@@ -39,11 +39,11 @@
 void print_usage()
 {
     printf("This is radeon/vcrtcm control utility (with an attitude).\n");
-    printf("\nIf you make no mistake, the tool will setup the transmission\n");
+    printf("If you make no mistake, the tool will setup the transmission\n");
     printf("your virtual CRTCs the way you want.\n");
     printf("If you make a mistake, you'll get what you deserve.\n");
     
-    printf("\nUsage:\n\tradeon_vcrtcm_ctl <op_code> <device> <display_index> <op_code dependent arguments>\n");
+    printf("Usage:\n\tradeon_vcrtcm_ctl <op_code> <device> <display_index> <op_code dependent arguments>\n");
     printf("\t<op_code>\n\t\t\t{nop,?,help,fps,stop,attach,detach}, default=nop\n"); 
     printf("\t<device>\n\t\t\tpath to the device node, default=/dev/dri/card0\n"); 
     printf("\t<display_index>\n\t\t\twhat else can it be, duh?, default=0\n"); 
@@ -55,8 +55,8 @@ void print_usage()
     printf("\t\tattach -- <major, default=0> <minor, default=0>, <flow, default=0>\n"); 
     printf("\t\tdetach -- no arguments\n"); 
     printf("\t\txmit   -- no arguments\n"); 
-    printf("\nAll arguments are optional, but you may get verbally abused\n"); 
-    printf("if you specify something that (combined with defaults) doesn't make sense.\n\n"); 
+    printf("All arguments are optional, but you may get verbally abused\n");
+    printf("if you specify something that (combined with defaults) doesn't make sense.\n");
 }
 
 #define OP_CODE_TABLE_SIZE 8
@@ -110,7 +110,7 @@ int main(int argc, char **argv)
     int drm_fd;
     
     if (argc<=1) {
-	printf("Hey, I could use some arguments, dude! How about typing 'radeon_vcrtcm_ctl ?' for a start ?\n\n"); 
+	printf("Hey, I could use some arguments, dude! How about typing 'radeon_vcrtcm_ctl ?' for a start ?\n");
 	printf("Anyway, I'll do a 'nop' operation on display %d device %s for you,\n",
 	       display_index, DRM_DRV_STRING); 
 	printf("but I doubt you'll find the result particularly exciting.\n"); 
@@ -119,8 +119,6 @@ int main(int argc, char **argv)
     
     if (argc>=3) dev_path = argv[2];
     if (argc>=4) display_index = strtol(argv[3], NULL, 0); 
-    
-    printf("\n"); 
     
     if (!(radeon_vcrtcm_ctl_descriptor = malloc(sizeof(radeon_vcrtcm_ctl_descriptor_t)))) {
 	printf("Can't allocate memory for ioctl decriptor\n");
@@ -203,8 +201,6 @@ int main(int argc, char **argv)
     }
     
     radeon_vcrtcm_ctl_descriptor -> display_index = display_index; 
-    
-    printf("\n"); 
     
     drm_fd=open(dev_path, O_RDWR);
     if (drm_fd < 0) {
