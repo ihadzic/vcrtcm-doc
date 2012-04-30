@@ -510,7 +510,7 @@ After applying patches, you should rebuild and re-test your system
 before proceeding.
 
 Finally, we should mention one limitation. By default, ATI DDX will
-turn on tiling for all screens. That will result in PCONs 
+turn on 1D tiling for all screens. That will result in PCONs 
 receiving a tiled frame buffer and would further require that the
 PCON understands tiling. At this time, both of our PCONs understand 
 only linear (scanline) frame buffer, so you should turn the tiling 
