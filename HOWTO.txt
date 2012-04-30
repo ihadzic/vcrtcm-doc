@@ -34,12 +34,14 @@ xorg.conf. In general, anything that uses DRM can use virtual
 CRTCs.
 
 External devices attached to virtual CRTCs are referred here as
-the Compression Transmission and Display (CTD) devices. The name
-implies what one could typically do with the pixels: compress
-them or transmit them over some link or just display them
-(the UDLCTD driver described later is an example of a device
-that does all three things). However, this is by no means
-a limitation of the system can do.
+"pixel consumers" (PCONs).  A PCON can do whatever it likes with
+the pixels that it receives from the virtual CRTC.  For example,
+a PCON can compress the pixels, transmit them over some link, or 
+display them locally.  (The UDL PCON described later is an example 
+of a PCON that does all three of these things).  PCONs can be
+implemented entirely in software, or as a combination of software
+and hardware.  In the latter case, the software part of the PCON
+typically also functions as a driver for the hardware part.
 
 The code has been developed in Bell Labs (a research unit
 of Alcatel-Lucent, Inc.) by a small groups of researchers and
@@ -57,46 +59,45 @@ and provide some information to get you started.
 2. Architecture Overview
 ========================
 
-The central module of the architecture is the VCRTCM (short for
-Virtual CRTC Manager). VCRTCM module provides an abstraction of CTD 
-hardware to the GPU driver and an abstraction of GPU hardware to the 
-CTD driver. In other words, GPU and CTD driver interact through a set 
-of abstraction functions provided by the VCRTCM. One way to 
-view the VCRTCM is as a display equivalent of DRM. Just like DRM 
-module provides an abstract interface between the GPU rendering hardware
-and the graphics application (e.g. Mesa/OpenGL, XF86_Video libraries), the
-VCRTCM module provides an abstract interface between the GPU rendering
-hardware and the CTD hardware.
+The central module of the architecture is the Virtual CRTC Manager 
+(VCRTCM).  The VCRTCM module provides an abstraction of the PCON to 
+the GPU driver and an abstraction of GPU hardware to the PCON. 
+In other words, the GPU and the PCON interact through a set of 
+abstraction functions provided by the VCRTCM. One way to view the 
+VCRTCM is as a display equivalent of DRM.  Just as the DRM module 
+provides an abstract interface between the GPU rendering hardware
+and the graphics application (e.g. Mesa/OpenGL, XF86_Video libraries), 
+the VCRTCM module provides an abstract interface between the GPU rendering
+hardware and the PCON.
 
-Roughly, a picture looks like this:
+The picture roughly looks like this:
 
-
-+-----+      +-----+      +--------+      +-----+
-| DRM |<-+-->| GPU |<-+-->| VCRTCM |<-+-->| CTD |
-+-----+  |   +-----+  |   +--------+  |   +-----+
++-----+      +-----+      +--------+      +------+
+| DRM |<-+-->| GPU |<-+-->| VCRTCM |<-+-->| PCON |
++-----+  |   +-----+  |   +--------+  |   +------+
          |            |               |
-         |   +-----+  |               |   +-----+
-         +-->| GPU |<-+               +-->| CTD |
-             +-----+                      +-----+
+         |   +-----+  |               |   +------+
+         +-->| GPU |<-+               +-->| PCON |
+             +-----+                      +------+
 
-A CTD device can be attached to a CRTC of a GPU at run time. It
+A PCON can be attached to a CRTC of a GPU at run time. It
 can also be detached and re-attached to some other CRTC at any
-time. VBlank events are sourced by the CTD if it is attached
+time. VBlank events are sourced by the PCON if it is attached
 to a virtual CRTC and the rendering and page flipping synchronizes
-to the CTD device. If a CTD device is attached to a physical CRTC,
-then VBlanks are still sourced by the physical connector (and CTD
-just asynchronously scrapes the frame buffer).
+to the PCON.  If a PCON is attached to a physical CRTC, then 
+VBlanks are still sourced by the physical connector (and the 
+PCON just asynchronously scrapes the frame buffer).
 
-The primary intended use of CTDs is with virtual CRTCs, so we do 
+The primary intended use of PCONs is with virtual CRTCs, so we do 
 not worry (for now) about the frame tearing that occurs when
-a CTD device is attached to a physical CRTC. When attached to a
+a PCON is attached to a physical CRTC. When attached to a
 virtual CRTC, we provide all the necessary mechanisms to run
-synchronized to the CTD.
+synchronized to the PCON.
 
 Virtual CRTCs also emulate the hardware cursor by accessing
 the cursor sprite data in addition to the frame buffer data
-and leaving it to the CTD to overlay it. Whether such a "hardware"
-cursor is really hardware, depends on what the CTD device is, but
+and leaving it to the PCON to overlay it. Whether such a "hardware"
+cursor is really hardware, depends on what the PCON is, but
 from the GPU's perspective, it looks and feels like it is:
 the application using the GPU does not need to do anything special
 for the virtual CRTC if it wants to use the hardware cursor.
@@ -113,27 +114,26 @@ will hit the hard limit imposed by the DRM.
 ============
 
 The usefulness of VCRTCM architecture depends on what the available
-CTDs do. We have currently released two CTD drivers. In this section
+PCONs do. We have currently released two PCONs. In this section
 we briefly described what you can do with them and and make your
 Linux box do some geeky things.
 
-UDLCTD driver is a device driver for a DisplayLink device (see
-http://www.displaylink.com/ for more information) and allows you
-to use a Radeon GPU for 3D rendering and display the rendered pixels
+UDLPCON is a PCON that is also a device driver for a DisplayLink device 
+(see http://www.displaylink.com/ for more information) and that allows 
+you to use a Radeon GPU for 3D rendering and display the rendered pixels
 on a monitor attached to a DisplayLink device. When you attach
-a UDLCTD device to a virtual CRTC, you will have a new screen that
+a UDLPCON to a virtual CRTC, you will have a new screen that
 will be an "equal citizen" with your local DVI, HDMI, VGA, whatever
 connectors that your GPU provides. Currently, DisplayLink support
 in Linux is limited to unaccelerated graphics using xf86-video-fbdev
 DDX. Using VCRTCM allows you to use your GPU for acceleration
 (and use the GPU-specific DDX), and your DL device for adding more
-heads to your monitor. UDLCTD driver reuses some of the code from
+heads to your monitor. UDLPCON reuses some of the code from
 drivers/video/udlfb.c, but in general it is a new driver that
 allows to use the DL hardware in a new way.
 
-V4L2CTD driver is a not associated with any hardware. Instead,
-it is a software adapter that exposes the GPU frame buffer to
-the user space as a Video-for-Linux device (/dev/videoN). 
+V4L2PCON is a software-only PCON that exposes the GPU frame buffer 
+to user space as a Video-for-Linux device (/dev/videoN). 
 You can use it to do many interesting things. For example, you
 can open VLC and capture the frames rendered by your GPU into a
 file or stream them over the network to another machine with a
@@ -144,13 +144,13 @@ you can run any application that can understand V4L2 format.
 At present, we support limited number of V4L2 formats but this will
 grow over time as the driver matures.
 
-Other CTD drivers: we will release a few more examples over time
+Other PCONs: We will release a few more examples over time
 (including the stub that can be used as a starting point for writing
-your own CTD drivers), but this is the area where we would like
+your own PCONs), but this is the area where we would like
 to see the most contributions from the community. Some examples
 include combining your modern (accelerated) GPU combined with
 some less capable (or unaccelerated) video card (the latter being
-a CTD) to extend the number of display connectors available to the
+a PCON) to extend the number of display connectors available to the
 former. We would be especially pleased to see some uses that
 we didn't expect.
 
@@ -174,11 +174,10 @@ the bandwidth for the same number of lanes and that may limit your
 FPS performance. We are testing everything on machines with X58
 chipset and Intel i7 processor.
 
-All of the examples shown in this document assume that your
-CTD device is a DisplayLink dongle. We tested the system with
-UGA-2K-A, UGA-165 and UGA-125, but we believe that things will likely
-work with other DisplayLink devices. If they don't, please send us
-some patches ;-).
+All of the examples shown in this document assume that your PCON 
+is a DisplayLink dongle. We tested the system with UGA-2K-A, UGA-165 
+and UGA-125, but we believe that things will likely work with other 
+DisplayLink devices. If they don't, please send us some patches ;-).
 
 5. Obtaining and Compiling the Kernel
 =====================================
@@ -212,7 +211,7 @@ We will be submitting our own patches into drm-next-vcrtcm and then
 propagating them into drm-next-vcrtcm-rebased, so the latter branch
 may occasionally fall behind the former.
 
-Knowing all this, you can pick your favorite branch (we'll assume it's
+Knowing all this, you can pick your favorite branch (we'll assume it is
 drm-next-vcrtcm) and obtain the kernel
 
 $ git clone git://github.com/ihadzic/linux-vcrtcm.git
@@ -226,9 +225,9 @@ Device drivers--->Graphics support)
 
   <M> Direct Rendering Manager
        <M> Bell Labs Virtual CRTC Manager (VCRTCM)
-              VCRTCM CTD Drivers
-                   <M> DisplayLink USB Graphics Adapter CTD Driver
-                   <M> Video for Linux CTD Driver
+              VCRTCM PCONs
+                   <M> DisplayLink USB Graphics Adapter PCON
+                   <M> Video for Linux PCON
        ....
        ....
        <M> ATI Radeon
@@ -241,11 +240,11 @@ CONFIG_DRM_KMS_HELPER=m
 CONFIG_DRM_RADEON=m
 CONFIG_DRM_RADEON_KMS=y
 CONFIG_DRM_VCRTCM=m
-CONFIG_DRM_VCRTCM_CTD_UDLCTD=m
-CONFIG_DRM_VCRTCM_CTD_V4L2CTD=m
+CONFIG_DRM_VCRTCM_PCON_UDL=m
+CONFIG_DRM_VCRTCM_PCON_V4L2=m
 
 At present only the 'm' (compile as kernel-loadable module) option has
-been tested for VCRTCM, UDLCTD and V4L2CTD, so you should compile
+been tested for VCRTCM, UDLPCON and V4L2PCON, so you should compile
 all the necessary components as modules. If you decide to experiment
 with 'y' option, please report the findings.
 
@@ -256,9 +255,9 @@ for Radeon driver. We do not support nor plan to ever support UMS
 Note that you do *not* need the "stock" UDL driver (udlfb). 
 It is not used and not required by the VCRTCM infrastructure.
 If you chose to include it, make sure it is compiled as a module so
-that you can chose whether to load the udlfb or udlctd.
+that you can chose whether to load udlfb or udlpcon.
 Normally, if you are using it with VCRTCM, you will want to use
-udlctd.
+udlpcon.
 
 Build the kernel and install the kernel image and kernel
 loadable modules modules the usual way (typically by typing
@@ -303,37 +302,37 @@ boot up the kernel, you can type 'modinfo radeon' to see what parameters
 the module understands (you should see the new parameters
 that are not available in the module that normally comes with
 your Linux distribution). Likewise, you can run 'modinfo' command on
-vcrtcm, udlctd, and v4l2ctd. This is also a good way to make sure
+vcrtcm, udlpcon, and v4l2pcon. This is also a good way to make sure
 that the modules you need are there and available for use.
 
 Also you can use 'lsmod' to check whether any of the modules has
 automatically loaded. If you have a DisplayLink device plugged into
 your USB port and if you are running UDEV, the system should
-automatically load the UDLCTD module. VCRTCM module should also load
+automatically load the UDLPCON module. The VCRTCM module should also load
 automatically because the GPU driver (radeon) now depends on it. 
 You can check what loaded using the 'lsmod' command. You should see
-udlctd driver loaded and the monitor attached to your DL device
+udlpcon driver loaded and the monitor attached to your DL device
 should be blue (this is a default pattern that we send in absence
 of any useful pixels; we also send a red pattern if something goes
 wrong).
 
-If you see the udlfb module loaded instead of udlctd module, you will
+If you see the udlfb module loaded instead of udlpcon, you will
 probably want to blacklist the former and reboot your system (typically
 by adding it to /etc/modprobe.d/blacklist.conf file, but that may vary
 depending on your distribution).
 
-If udlctd driver does not load even if you have a DisplayLink
+If udlpcon driver does not load even if you have a DisplayLink
 device connected to your USB port, you can manually insert it using
-'modprobe udlctd'. You can also insert v4l2ctd module using 
-'modprobe v4l2ctd'.
+'modprobe udlpcon'. You can also insert the v4l2pcon module using 
+'modprobe v4l2pcon'.
 
 7. Obtaining and Compiling the Control Application
 ===================================================
 
 In addition to the new kernel (and modules described above) you will
 also need a control application. This application is used to attach
-and detach CTD drivers to the CRTCs of your GPU driver. It talks to the
-GPU driver using a newly introduced ioctl() and controls which CTD
+and detach PCONs to the CRTCs of your GPU driver. It talks to the
+GPU driver using a newly introduced ioctl() and controls which PCON
 is attached to which CRTC. It also controls the frame rate (and thus
 the VBlank rate) associated with each virtual CRTC.
 
@@ -359,32 +358,32 @@ is experimental, we don't mind trading security for convenience.
 We will later tighten this up.
 
 You will also notice that radeon_vcrtcm_ctl program is quite trivial,
-but it does the job and it's primary purpose is to get you going and
+but it does the job and its primary purpose is to get you going and
 provide examples of controlling the VCRTCM using the new ioctl().
 We do not have plans to make it much fancier; if you feel like contributing
 here (either by extending the program itself or wrapping it into scripts),
 you are most welcome.
 
 Before proceeding, you will also have to note the major device number
-of your CTD drivers. Note that the device numbers are assigned
-dynamically, so depending on what else you load they may change if
-you change your system configuration. The easiest way to find out is
-to look at /proc/devices. On our system we get:
+of your PCONs. Note that the device numbers are assigned dynamically, 
+so depending on what else you load they may change if you change your 
+system configuration. The easiest way to find out is to look at 
+/proc/devices. On our system we get:
 
 $ cat /proc/devices
 Character devices:
   ...
   ...
-  250 v4l2ctd
-  251 udlctd
+  250 v4l2pcon
+  251 udlpcon
   ...
   ...
 Block devices:
   ...
   ...
 
-So in the examples to follow we will use 251 to refer to udlctd driver,
-with understanding that on your system it may be something else.
+So in the examples to follow we will use 251 to refer to the udlpcon 
+driver, with the understanding that on your system it may be something else.
 
 
 8. Getting your System Ready
@@ -433,7 +432,7 @@ mesa: git://anongit.freedesktop.org/mesa/mesa
 Once again, please make sure that your system works irrespective of
 VCRTCM before proceeding.
 
-Now it's time to fix some bugs in xf86-video-ati library and Xorg. There
+Now it is time to fix some bugs in xf86-video-ati library and Xorg. There
 are two patches to apply (and you will have to recompile and reinstall the
 two packages after that). The bugs are generic, but exposed only if 
 VCRTCM is used. You should understand what the patches are about
@@ -487,15 +486,15 @@ After applying patches, you should rebuild and re-test your system
 before proceeding.
 
 Finally, we should mention one limitation. By default, ATI DDX will
-turn on 1D tiling for all screens. That will result in CTD drivers
+turn on 1D tiling for all screens. That will result in PCONs 
 receiving a tiled frame buffer and would further require that the
-CTD driver understands tiling. At this time, both of our CTD drivers
-only understand linear (scanline) frame buffer, so you should turn
-the tiling off in your xorg.conf. We will later add tiling support
-and then you will be able to go back to tiled buffer.
+PCON understands tiling. At this time, both of our PCONs understand 
+only linear (scanline) frame buffer, so you should turn the tiling 
+off in your xorg.conf.  We will later add tiling support, at which
+time you will be able to go back to tiled buffer.
 
 Since 1D tiling is the default, using X without xorg.conf will
-result in a messy looking screen on your CTD device (e.g your monitor
+result in a messy looking screen on your PCON (e.g your monitor
 attached to a DisplayLink dongle). All examples that follow will
 include turning off the tiling support in your GPU driver.
 
@@ -509,9 +508,9 @@ the way you want. If you come up with an example that you think
 is worth including in this document, please send it to us.
 
 We will assume that you have at least one virtual CRTC in your
-system and that you are using a DisplayLink device as your CTD
-and that the major device number of your CTD is 251. Extrapolating
-the examples to other CTD should be straight forward.
+system and that you are using a DisplayLink device as your PCON
+and that the major device number of your PCON is 251. Extrapolating
+the examples to other PCON should be straightforward.
 
 We will also assume that your GPU is in PCI slot that maps to
 bus number 4 (so the full PCI address of your GPU is 4:0:0,
@@ -530,7 +529,7 @@ a) Trivial example
 ------------------
 
 This example does not really use virtual CRTC, but instead it
-attaches a CTD device to a physical CRTC. This is also a legitimate
+attaches a PCON to a physical CRTC. This is also a legitimate
 configuration and can be useful in some instances. Essentially,
 it will create a copy of your desktop on your DisplayLink device.
 
@@ -539,9 +538,9 @@ example, but until we work out a few things on our TODO list, you
 need it. Specifically, you need it to turn off the tiling
 and to set the resolution correctly. The former has been explained
 before; the latter deserves some more explanation. Namely, VCRTCM
-does not yet support probing the CTD device available modes. Instead
-virtual CRTCs hard-code a few commonly used modes and if the CTD
-device cannot handle what a virtual CRTC offers, it will refuse
+does not yet support probing the PCON's available modes. Instead
+virtual CRTCs hard-code a few commonly used modes and if the PCON
+cannot handle what a virtual CRTC offers, it will refuse
 to attach. We will fix this limitation in the future, but in the
 meantime you will be better off specifying your own modes in
 xorg.conf rather than relying of "fake" probing (which will work
@@ -570,8 +569,8 @@ You can open a terminal window and start glxgears. You will immediately
 notice that the frame rate reported is that of your primary monitor
 (typically 60 fps) and that the movements on your DL monitor are
 not very smooth. This is because glxgears synchronizes to your
-primary monitor and the "sampling rate" of your CTD device is
-mismatched both in frequency and phase.
+primary monitor and the "sampling rate" of your PCON is mismatched 
+both in frequency and phase.
 
 Now increase the transmission rate to 60 fps (or whatever matches your
 monitor)
@@ -579,12 +578,12 @@ monitor)
 $ radeon_vcrtcm_ctl fps /dev/dri/card0 0 60
 
 The movements will become smoother, but you will still notice some
-"hickups" because CTD device is still running asynchronously from
+"hickups" because the PCON is still running asynchronously from
 your monitor. 
 
 This assumes that you don't have any bottlenecks in your system, such
 as slow memory bus, PCI Express bus, USB bus or just a slow machine. Note
-that UDLCTD driver runs the compression and transmission to USB bus
+that UDL PCON runs the compression and transmission to USB bus
 in software, so you need a decent machine. Also some (older) GPUs
 may not be able to fully utilize the PCI Express bus bandwidth and
 some older motherboards may backpressure you on the memory bus.
@@ -596,9 +595,9 @@ The data flow in your system looks something like this:
 
 Framebuffer0 ---> CRTC-0 -+-> Encoder0 ---> Connector0 ---> Monitor0
                           |
-                          +-> VCRTCM ---> UDLCTD ---> USB ---> Monitor1
+                          +-> VCRTCM ---> UDLPCON ---> USB ---> Monitor1
 
-Your GPU and your windowing system has no idea that it's frame
+Your GPU and your windowing system has no idea that its frame
 buffer is being scraped by the DisplayLink device and you are seeing
 a hardware-accelerated 3D application on your DisplayLink monitor
 (something you can't do with "stock" Linux distro), but this is
@@ -610,20 +609,20 @@ You can now stop the transmission:
 $ radeon_vcrtcm_ctl stop /dev/dri/card0 0
 
 Notice that the application continues to run on your primary
-monitor. It's only the updates to your CTD devices that have stopped.
+monitor. It's only the updates to your PCONs that have stopped.
 
 Now you can detach
 
 $ radeon_vcrtcm_ctl detach /dev/dri/card0 0
 
-You can also detach the CTD device while the transmission is in
+You can also detach the PCON while the transmission is in
 progress, which will automatically stop the transmission.
 
-For fun sake, you can repeat the above exercise with the V4L2CTD
-driver. Attach the CRTC using major device number of your v4l2ctd
+For fun sake, you can repeat the above exercise with the V4L2PCON.
+Attach the CRTC using the major device number of your v4l2pcon
 module (explained earlier in this document) and start the transmission.
 You should see a new /dev/videoN device appear after you modprobe
-v4l2ctd module. Open VLC or any other application that can access
+v4l2pcon module. Open VLC or any other application that can access
 /dev/video device and you should see your desktop in a video player.
 
 If you would like to have multiple minors for a v4l2ctd device, load
@@ -634,7 +633,7 @@ correspond to v4l2ctd device and that can be separately attached.
 b) Same (trivial) Example with Virtual CRTC
 -------------------------------------------
 
-In the previous example, we attached a CTD device to a physical CRTC.
+In the previous example, we attached a PCON to a physical CRTC.
 We will now repeat the above example (do not stop your application
 and do not close your desktop yet), but with a virtual CRTC.
 
@@ -651,7 +650,7 @@ In other words, we will make the data flow look like this:
 
 Framebuffer0 -+-> CRTC-0 ---> Encoder0 ---> Connector0 ---> Monitor0
               |
-              +-> CRTC-N ---> VCRTCM ---> UDLCTD ---> USB ---> Monitor1
+              +-> CRTC-N ---> VCRTCM ---> UDLPCON ---> USB ---> Monitor1
 
 Where N is the number that corresponds to your virtual CRTC.
 
@@ -728,7 +727,7 @@ connectors are due to the virtual CRTC. When a virtual CRTC is
 created, the system does not only see the new CRTC, but also a new
 virtual connector and a new virtual encoder.
 
-For a virtual connector, we use DisplayPort type (it's an interface
+For a virtual connector, we use DisplayPort type (which is an interface
 that can be adapted to various other ports using a special dongle;
 see http://en.wikipedia.org/wiki/DisplayPort for more info).
 The associated encoder is a special encoder that we call Virtual Encoder
@@ -816,7 +815,7 @@ Screen/Device pair. This is also the place to force the resolution
 if necessary. We let the physical CRTC/Connector probe it, and we force
 it on the virtual CRTC/Connector. As explained earlier, probing on virtual
 connectors is incomplete at this time. It will work for you only if your
-CTD device accepts *one* of the modes listed in radeon_virtual_crtc_get_modes()
+PCON accepts *one* of the modes listed in radeon_virtual_crtc_get_modes()
 in the kernel tree (in the DisplayLink case, that means that both your
 dongle and the monitor must accept one of the listed modes).
 
@@ -839,8 +838,8 @@ $ radeon_vcrtcm_ctl fps /dev/dri/card0 6 60
 
 The identical text console will appear on the screen associated with
 the virtual CRTC. Now, start your XDM session. The login screen will
-be on your physical CRTC and your other screen (virtual CRTC)
-will be dark. You can move the mouse cursor into it, so it's not that
+be on your physical CRTC and your other screen (virtual CRTC) will 
+be dark. You can move the mouse cursor into it, so it is not that
 dark after all ;-). 
 
 After you log in, you will see two desktops and you can move the mouse
@@ -857,7 +856,7 @@ $ radeon_vcrtcm_ctl fps /dev/dri/card0 6 30
 
 You will see the frame rate reported by glxgears drops down to 30. This
 is because this time the application is synchronized with VBlanks
-generated by the CTD device. UDLCTD uses jiffies counter and kworker thread
+generated by the PCON.  UDLPCON uses jiffies counter and kworker thread
 to generate VBlanks, so their precision is limited to the precision
 of the counter. Hopefully you are using CONFIG_HZ_1000 for your kernel
 (otherwise the precision would be quite bad).
@@ -870,19 +869,19 @@ At this point you may be wondering whether it was necessary
 to call 'attach' and 'fps' before starting XDM or was the purpose of that
 just to show off the fbcon. The answer is that in this particular
 case it was necessary to call at least 'attach' before starting
-X. The reason is that a virtual CRTC without attached CTD device is
+X. The reason is that a virtual CRTC without attached PCON is
 treated as a disconnected connector. With xorg.conf used in this example,
 Xorg won't create a desktop on disconnected connector, so we had
-to make it connected by calling the attach (and if the CTD device
-is a DisplayLink dongle, you should have connected the monitor
-to it, because UDLCTD checks the monitor status and reports it to VCRTCM).
+to make it connected by calling the attach (and if the PCON is a 
+DisplayLink dongle, you should have connected the monitor to it, 
+because UDLPCON checks the monitor status and reports it to VCRTCM).
 
 You can change that behavior by setting radeon.conn_virt_crtc
 parameter to '1' at GPU driver load time. Note, however, that
 if you use this parameter to force virtual CRTCs into connected
 state, the GPU driver will "make up" the modes (resolutions).
 It will use a list of common modes instead of querying the
-attached CTD driver.
+attached PCON.
 
 If you keep the default behavior (virtual CRTCs disconnected
 when detached) you will have to call the attach before starting X
@@ -891,7 +890,7 @@ different.
 
 If your system starts X automatically on boot and you want
 to use Zaphod mode without forcing virtual CRTCs in connected state, 
-then you should add loading of the CTD drivers that you need and
+then you should add loading of the PCONs drivers that you need and
 calling the 'attach/fps' commands somewhere in your boot scripts.
 Ideally, this should be done through UDEV policy but we have not
 implemented that yet. 
@@ -903,7 +902,7 @@ d) One Desktop with one Physical and one Virtual CRTC
 In the next example, you will create one big desktop that
 spans across two CRTCs. The left part of the desktop will be
 on the monitor attached to the local DVI port of your GPU,
-while the right part of the desktop will be on a CTD device
+while the right part of the desktop will be on a PCON 
 (DisplayLink monitor in this example). The configuration
 to use is config_examples/xorg.conf_big_desktop. After a little
 examination, it should be straight forward to figure out what
@@ -916,7 +915,7 @@ your GPU has some real DisplayPort connectors). Also,
 the relative location of your CRTCs on your big desktop
 is defined in "Monitor" sections. The rest should be clear.
 
-So start your XDM session, attach your CTD device and start
+So start your XDM session, attach your PCON and start
 the transmission.
 
 $ radeon_vcrtcm_ctl attach /dev/dri/card0 6 251
@@ -927,7 +926,7 @@ rate of the monitor that is attached to your DVI port so that you
 can see one interesting detail (in this example, we set it to 30 fps
 and our DVI port runs at 60 fps).
 
-Here, it does not matter whether you attach the CTD before or
+Here, it does not matter whether you attach the PCON before or
 after starting X. If you attach before starting X, Xorg will find
 both connectors you want to use in connected state and create one
 big desktop across two CRTCs as instructed by xorg.conf. If
@@ -954,29 +953,29 @@ switched to synchronizing to new the new source of VBlanks.
 e) Single Desktop with Virtual CRTC Only
 ----------------------------------------
 
-In this example, we will run X whose only screen is on a CTD device
+In this example, we will run X whose only screen is on a PCON
 (headless system). To do that go back to config_examples/xorg.conf_simple
 and yank out all monitor cables from your GPU. Leave the DisplayLink monitor
-connected (assuming that UDLCTD is your CTD device).
+connected (assuming that UDLPCON is your PCON).
 
 At this point you are probably wondering where your text console
-(e.g. fbcon) will go. The answer is to CTD device, but you must
+(e.g. fbcon) will go. The answer is to the PCON, but you must
 make sure that the driver loads with radeon.fb_virt_crtc parameter
 set to 1 (which is the default value).
 
 When you start booting up, you will not see anything on your screen
-because your CTD has not been attached yet. So you need a second machine
+because your PCON has not been attached yet. So you need a second machine
 to ssh from, unless you are really good at typing blindly.
 
-Once you get onto your target machine, attach the CTD and start the
+Once you get onto your target machine, attach the PCON and start the
 transmission:
 
 $ radeon_vcrtcm_ctl attach /dev/dri/card0 6 251
 $ radeon_vcrtcm_ctl fps /dev/dri/card0 6 60
 
 If your system starts XDM automatically, you should see the XDM login
-screen show up on your CTD. If not, you will see fbcon login. 
-Start XDM at this point (or play with text console on your CTD device
+screen show up on your PCON. If not, you will see fbcon login. 
+Start XDM at this point (or play with text console on your PCON
 a little, as you wish). Now log in and enjoy your session that uses
 your GPU for rendering only and a foreign device for display (CTRL-ALT-F<N> 
 also works, so try it).
@@ -987,7 +986,7 @@ somewhere in your boot scripts and probably write some
 UDEV rules to control it. If you come up with something, please
 share.
 
-Note that if you are using DisplayLink CTD that there are some
+Note that if you are using DisplayLink PCON that there are some
 known issues with modes so you may end up with the red screen.
 If that happens, see the next section for troubleshooting.
 
@@ -998,9 +997,9 @@ The absolute minimum xorg.conf is the one that only tunrs tiling
 off and leaves everything to the system to detect. To try this out,
 use config_examples/xorg.conf_minimal.
 
-Start X without any CTD device attached and log in. You can check
+Start X without any PCON attached and log in. You can check
 the status of virtual ports with xrandr (they will be disconnected).
-Now load a CTD driver and attach it:
+Now load a PCON driver and attach it:
 
 $ radeon_vcrtcm_ctl attach /dev/dri/card0 6 251
 $ radeon_vcrtcm_ctl fps /dev/dri/card0 6 30
@@ -1013,7 +1012,7 @@ $ radeon_vcrtcm_ctl detach /dev/dri/card0 6
 There will be a new hotplug event and the desktop will
 resize back to the smaller one.
 
-If you are using UDLCTD (DisplayLink) you can yank in and out the
+If you are using UDLPCON (DisplayLink) you can yank in and out the
 DVI side of the adapter and the behavior will be the same
 as if you are unplugging and plugging a regular port of your GPU.
 Desktop will be resizing back and forth as you do this.
@@ -1031,15 +1030,15 @@ g) Putting it in perspective ... literally
 ------------------------------------------
 
 Here is a useless, but interesting example. This time we will
-use the v4l2ctd driver to create an interesting visual effect.
-As mentioned before, it is possible to attach a CTD device
+use the v4l2pcon driver to create an interesting visual effect.
+As mentioned before, it is possible to attach a PCON
 to a physical CRTC. So what you will do in this example, is
-attach a v4l2ctd driver to CRTC-0, which will be the CRTC of your
+attach a v4l2pcon driver to CRTC-0, which will be the CRTC of your
 primary monitor. Then you will open VLC and view your primary
 desktop in it ... on your primary desktop. What will happen?
 Give it a try:
 
-$ sudo modprobe v4l2ctd
+$ sudo modprobe v4l2pcon
 $ radeon_vcrtcm_ctl attach /dev/dri/card0 0 251
 $ radeon_vcrtcm_ctl fps /dev/dri/card0 0 30
 $ vlc v4l2:///dev/video0
@@ -1117,24 +1116,23 @@ port.
 d) The screen on my DisplayLink monitor went red (or blue)
 ----------------------------------------------------------
 
-If you are using UDLCTD driver and you see a red screen, don't panic.
-It's our inicator that UDLCTD driver didn't like something. This typically
+If you are using UDLPCON and you see a red screen, don't panic.
+It's our inicator that UDLPCON didn't like something. This typically
 happens if it is forced into a mode that it can't handle. If that
 happens, the transmission will be shut off, but no damage will be done.
 Once you fix the culprit (whatever is forcing it into a incompatible
 resolution), you can re-enable the transmission with 'radeon_vcrtcm_ctl fps'
 command. This problem is most likely to happen if you load the GPU 
-driver with conn_virt_crtc=1. In this case the GPU does not
-query the attached CTD device for supported modes.
-Instead GPU makes up some commonly used modes and tries to
-force them upon the CTD device. If UDLCTD can't handle the
-forced mode it will turn the screen red. If you load the GPU
-driver conn_virt_crtc=0 (default) the invalid mode is
-less likely to happen. 
+driver with conn_virt_crtc=1. In this case the GPU does not query 
+the attached PCON for supported modes.  Instead, GPU makes up some 
+commonly used modes and tries to force them upon the PCON. If UDLPCON 
+can't handle the forced mode it will turn the screen red. If you load 
+the GPU driver conn_virt_crtc=0 (default) the invalid mode is less 
+likely to happen. 
 
 While we are at it, blue screen is totally benign. It is
 a default content that we put out when the module loads. So you will
-see the blue screen between the module load and the CTD attach/fps
+see the blue screen between the module load and the PCON attach/fps
 ioctl.
 
 e) When I try to use v4l2ctd driver, I get some errors about vmalloc
