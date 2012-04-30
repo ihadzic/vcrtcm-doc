@@ -88,7 +88,7 @@ int main(int argc, char **argv)
 				v4l2width, v4l2height, 0,
 				black, black);
 	XSelectInput(d, w, StructureNotifyMask);
-	XStoreName(d, w, "v4l2ctd viewer");
+	XStoreName(d, w, "v4l2pcon viewer");
 	XMapRaised(d, w);
 	gc = XCreateGC(d, w, 0, NULL);
 	XGetWindowAttributes(d, w, &wa);

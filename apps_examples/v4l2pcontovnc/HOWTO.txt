@@ -3,11 +3,11 @@ Copyright (c) 2010, Alcatel-Lucent, Inc., Bell Laboratories
 Authors:
   Chris Woithe and Ilija Hadzic
 
-This directory contains v4l2ctdtovnc application that will open
+This directory contains v4l2pcontovnc application that will open
 /dev/video<N> device and act as a simple VNC server. A VNC client
 can connect to it and view the content streamed by /dev/video<N>
 device. If your /dev/video<N> device node is associated with a
-v4l2ctd device, you will see the frame buffer associated with a
+v4l2pcon device, you will see the frame buffer associated with a
 virtual CRTC.
 
 The application takes two parameters: path to the device node file
@@ -26,15 +26,15 @@ Instructions:
    thread (if you are using Gentoo distribution like us, make sure that
    your USE variable includes threads and zlib).
 
-3) Compile v4l2ctdtovnc in this directory (type 'make').
+3) Compile v4l2pcontovnc in this directory (type 'make').
 
 4) Create your favorite desktop configuration.
 
-5) Load (modprobe) v4l2ctd driver.
+5) Load (modprobe) the v4l2pcon driver.
 
-6) Attach v4l2ctd device to the desired CRTC and start the transmission
+6) Attach the v4l2pcon device to the desired CRTC and start the transmission.
 
-7) Run v4l2ctdtovnc. For example 'v4l2ctdtovnc /dev/video0 30' will
+7) Run v4l2pcontovnc. For example 'v4l2pcontovnc /dev/video0 30' will
    run the VNC server on /dev/video0 device at 30 frames per second
    (depending on your network bandwidth and the speed of your machine,
    you may need to lower the VNC frame rate)
