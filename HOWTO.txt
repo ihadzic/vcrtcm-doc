@@ -1143,6 +1143,14 @@ Video 4 Linux relies on vmalloc area for its buffers. This area is rather
 small and can easily be consumed by (large) framebuffers. To work around
 the problem boot up the kernel with vmalloc=256M parameter.
 
+f) I attach a v4l2ctd device to fbcon but when I start X the screen looks
+   messed up (like a broken TV)
+
+Video for Linux is not very good at dynamically resizing its buffer.
+So when you start X after you have attached to an fbcon screen, the
+frame buffer geometry (width, height, pitch) may change, but v4l2ctd
+won't know it. To fix the problem detach the CTD and attach again.
+
 ?) what else ???
 ----------------
 
