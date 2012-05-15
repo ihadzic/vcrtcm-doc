@@ -1133,8 +1133,13 @@ a default content that we put out when the module loads. So you will
 see the blue screen between the module load and the CTD attach/fps
 ioctl.
 
+e) When I try to use v4l2ctd driver, I get some errors about vmalloc
 
-e) what else ???
+Video 4 Linux relies on vmalloc area for its buffers. This area is rather
+small and can easily be consumed by (large) framebuffers. To work around
+the problem boot up the kernel with vmalloc=256M parameter.
+
+?) what else ???
 ----------------
 
 ... TODO ...
