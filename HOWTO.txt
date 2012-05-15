@@ -626,6 +626,10 @@ You should see a new /dev/videoN device appear after you modprobe
 v4l2ctd module. Open VLC or any other application that can access
 /dev/video device and you should see your desktop in a video player.
 
+If you would like to have multiple minors for a v4l2ctd device, load
+the kernel module with num_minors=<N> parameter. You will get
+multiple /dev/video0 through /dev/video<N-1> device nodes that
+correspond to v4l2ctd device and that can be separately attached.
 
 b) Same (trivial) Example with Virtual CRTC
 -------------------------------------------
