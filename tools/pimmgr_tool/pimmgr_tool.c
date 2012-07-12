@@ -104,6 +104,11 @@ int do_instantiate(int argc, char **argv)
 	
 	pconid = ioctl(fd, PIMMGR_IOC_INSTANTIATE, &args);
 	
+	if ((int)pconid < 0) {
+		printf("Could not create pcon...\n");
+		return 0;
+	}
+	
 	printf("Success\n");
 	printf("New pconid = %u\n", pconid);
 	
