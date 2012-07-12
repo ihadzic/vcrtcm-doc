@@ -169,17 +169,11 @@ int main(int argc, char **argv)
 	
     case 5: 
 	{
-	    int major = 0, minor = 0, flow = 0;
-	    if (argc>=5) major = strtol(argv[4], NULL, 0); 
-	    if (argc>=6) minor = strtol(argv[5], NULL, 0); 
-	    if (argc>=7) flow  = strtol(argv[6], NULL, 0); 
-	    printf("Attach, device %s, display %d, major %d, minor %d, flow %d\n",
-		   dev_path, display_index, 
-		   major, minor, flow);
+	    uint32_t pconid = 0;
+	    if (argc>=5) pconid = (uint32_t)strtol(argv[4], NULL, 0); 
+	    printf("Attach, device %s, pconid %u\n", dev_path, pconid);
 	    radeon_vcrtcm_ctl_descriptor -> op_code = RADEON_VCRTCM_CTL_OP_CODE_ATTACH; 
-	    radeon_vcrtcm_ctl_descriptor -> arg1.major = major; 
-	    radeon_vcrtcm_ctl_descriptor -> arg2.minor = minor; 
-	    radeon_vcrtcm_ctl_descriptor -> arg3.flow  = flow; 
+	    radeon_vcrtcm_ctl_descriptor -> arg1.pconid = pconid;
 	    break; 
 	}
     case 6: 
