@@ -154,11 +154,6 @@ int do_destroy(int argc, char **argv)
 	return 0;
 }
 
-int sysfs_find_pims_pcons(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
-{
-
-}
-
 int sysfs_find_pims(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
 {
 	if (typeflag != FTW_D)
