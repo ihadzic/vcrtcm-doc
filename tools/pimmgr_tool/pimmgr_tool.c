@@ -137,7 +137,7 @@ int do_destroy(int argc, char **argv)
 	
 	fd = open_pimmgr_device();
 	
-	args.arg1.pconid = (uint32_t) atol(argv[0]);
+	args.arg1.pconid = (uint32_t) atoll(argv[0]);
 	
 	result = ioctl(fd, PIMMGR_IOC_DESTROY, &args);
 	if (IOCTL_RESULT_IS_ERR(result)) {
@@ -147,6 +147,9 @@ int do_destroy(int argc, char **argv)
 			printf("Unknown error occured.\n");
 		return 1;
 	}
+	
+	printf("Success\n");
+	printf("Destroyed pcon %u\n", args.arg1.pconid);
 	
 	return 0;
 }
