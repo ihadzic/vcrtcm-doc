@@ -124,7 +124,7 @@ int do_instantiate(int argc, char **argv)
 	}
 	
 	printf("Success\n");
-	printf("New pconid = %u\n", args.result1.pconid);
+	printf("Created pconid %u\n", args.result1.pconid);
 	
 	return 0;
 }
@@ -149,7 +149,7 @@ int do_destroy(int argc, char **argv)
 	}
 	
 	printf("Success\n");
-	printf("Destroyed pcon %u\n", args.arg1.pconid);
+	printf("Destroyed pconid %u\n", args.arg1.pconid);
 	
 	return 0;
 }
