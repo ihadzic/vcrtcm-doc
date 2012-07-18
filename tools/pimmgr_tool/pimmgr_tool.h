@@ -23,7 +23,15 @@
 #define PIMMGR_MAGIC 'K'
 #define PIMMGR_IOC_INSTANTIATE _IOW(PIMMGR_MAGIC, 1, int)
 #define PIMMGR_IOC_DESTROY _IOW(PIMMGR_MAGIC, 2, int)
-#define PIMMGR_IOC_INFO _IOW(PIMMGR_MAGIC, 3, int)
+
+#define PIMMGR_ERR_INVALID_PIM 1
+#define PIMMGR_ERR_NOT_AVAILABLE 2
+#define PIMMGR_ERR_CANNOT_REGISTER 3
+#define PIMMGR_ERR_INVALID_PCON 4
+#define PIMMGR_ERR_NOMEM 5
+#define PIMMGR_MAX_ERROR 5
+
+#define IOCTL_RESULT_IS_ERR(result) (result != 0)
 
 #define PIM_NAME_LEN 33
 #define PIMMGR_DEVICE "/dev/pimmgr"
@@ -31,8 +39,17 @@
 #include <stdint.h>
 
 struct pimmgr_ioctl_args {
-	char pim_name[PIM_NAME_LEN];
-	uint32_t hints;
+	union {
+		char pim_name[PIM_NAME_LEN];
+		uint32_t pconid;
+	} arg1;
+	union {
+		uint32_t hints;
+	} arg2;
+	
+	union {
+		uint32_t pconid;
+	} result1;
 };
 
 #endif

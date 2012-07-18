@@ -94,42 +94,56 @@ int do_instantiate(int argc, char **argv)
 {
 	struct pimmgr_ioctl_args args;
 	int fd = 0;
-	uint32_t pconid = 0;
+	long result = 0;
 	char *type = argv[0];
 	
 	fd = open_pimmgr_device();
 	
-	strncpy(args.pim_name, type, PIM_NAME_LEN);
-	args.hints = 0;
+	strncpy(args.arg1.pim_name, type, PIM_NAME_LEN);
+	args.arg2.hints = 0;
 	
-	pconid = ioctl(fd, PIMMGR_IOC_INSTANTIATE, &args);
+	result = ioctl(fd, PIMMGR_IOC_INSTANTIATE, &args);
 	
-	if ((int)pconid < 0) {
-		printf("Could not create pcon...\n");
-		return 0;
+	printf("IOCTL result %li\n", result);
+	
+	if (IOCTL_RESULT_IS_ERR(result)) {
+		if (result == PIMMGR_ERR_INVALID_PIM)
+			printf("Invalid pim identifier.\n");
+		else if (result == PIMMGR_ERR_NOT_AVAILABLE)
+			printf("No pims of that type are available.\n");
+		else if (result == PIMMGR_ERR_CANNOT_REGISTER)
+			printf("Error registering pcon with vcrtcm\n");
+		else if (result == PIMMGR_ERR_NOMEM)
+			printf("Out of memory error while instantiating pcon\n");
+		else
+			printf("Unknown error occurred.\n");
+		return 1;
 	}
 	
 	printf("Success\n");
-	printf("New pconid = %u\n", pconid);
+	printf("New pconid = %u\n", args.result1.pconid);
 	
 	return 0;
 }
 
 int do_destroy(int argc, char **argv)
 {
+	struct pimmgr_ioctl_args args;
 	int fd = 0;
-	int result = 0;
-	uint32_t pconid = 0;
+	long result = 0;
 	
 	fd = open_pimmgr_device();
 	
-	pconid = (uint32_t) atol(argv[0]);
-	result = ioctl(fd, PIMMGR_IOC_DESTROY, pconid);
+	args.arg1.pconid = (uint32_t) atol(argv[0]);
 	
-	if (result)
-		printf("Success\n");
-	else
-		printf("Invalid pconid\n");
+	result = ioctl(fd, PIMMGR_IOC_DESTROY, &args);
+	if (IOCTL_RESULT_IS_ERR(result)) {
+		if (result == PIMMGR_ERR_INVALID_PCON)
+			printf("Invalid pconid.\n");
+		else
+			printf("Unknown error occured.\n");
+		return 1;
+	}
 	
 	return 0;
 }
