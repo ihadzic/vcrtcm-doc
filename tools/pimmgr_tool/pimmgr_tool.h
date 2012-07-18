@@ -35,6 +35,10 @@
 
 #define PIM_NAME_LEN 33
 #define PIMMGR_DEVICE "/dev/pimmgr"
+#define PIMMGR_SYSFS "/sys/class/vcrtcm/pimmgr"
+#define PIMMGR_SYSFS_PIM_PATH PIMMGR_SYSFS "/pims"
+#define PIMMGR_SYSFS_PCON_PATH PIMMGR_SYSFS "/pcons"
+
 
 #include <stdint.h>
 

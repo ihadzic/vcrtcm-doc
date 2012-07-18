@@ -17,6 +17,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#define _XOPEN_SOURCE 500
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,6 +28,7 @@
 #include <fcntl.h>
 #include <stdint.h>
 #include "pimmgr_tool.h"
+#include <ftw.h>
 
 #define MAX_COMMAND_LEN 35
 
@@ -148,9 +151,31 @@ int do_destroy(int argc, char **argv)
 	return 0;
 }
 
+int sysfs_find_pims_pcons(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
+{
+
+}
+
+int sysfs_find_pims(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
+{
+	if (typeflag != FTW_D)
+		return FTW_CONTINUE;
+		
+	if (ftwbuf->base == 0)
+		return FTW_CONTINUE;
+	
+	if (ftwbuf->level == 1)
+		printf("PIM: %s\n", fpath + ftwbuf->base);
+	
+	if (ftwbuf->level == 2)
+		printf(" --> PCON: %s\n", fpath + ftwbuf->base);
+		
+	return FTW_CONTINUE;
+}
+
 int do_info(int argc, char **argv)
 {
-	printf("Not Implemented Yet\n");
+	nftw(PIMMGR_SYSFS_PIM_PATH, sysfs_find_pims, 32, FTW_ACTIONRETVAL);
 	
 	return 0;
 }
