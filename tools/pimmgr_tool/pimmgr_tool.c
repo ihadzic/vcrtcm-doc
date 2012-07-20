@@ -156,17 +156,27 @@ int do_destroy(int argc, char **argv)
 
 int sysfs_find_pims(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
 {
-	if (typeflag != FTW_D)
-		return FTW_CONTINUE;
-		
-	if (ftwbuf->base == 0)
-		return FTW_CONTINUE;
-	
 	if (ftwbuf->level == 1)
 		printf("PIM: %s\n", fpath + ftwbuf->base);
 	
-	if (ftwbuf->level == 2)
+	if (ftwbuf->level == 2 && typeflag == FTW_D)
 		printf(" --> PCON: %s\n", fpath + ftwbuf->base);
+	
+	if (ftwbuf->level == 3 && strcmp(fpath + ftwbuf->base, "description") == 0) {
+		FILE *f = fopen(fpath, "r");
+		if (f) {
+			static char contents[4096];
+			int size = 0;
+			size = fread(contents, sizeof(char), 4096, f);
+			if (contents[size-1] == '\n')
+				contents[size-1] = '\0';
+			printf("      -> %s\n", contents);
+		}
+		else {
+			printf("cannot open...\n");
+		}
+	}
+	
 		
 	return FTW_CONTINUE;
 }
