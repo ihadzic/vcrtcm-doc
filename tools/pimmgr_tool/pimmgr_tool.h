@@ -30,6 +30,7 @@
 #define PIMMGR_ERR_INVALID_PCON 4
 #define PIMMGR_ERR_NOMEM 5
 #define PIMMGR_MAX_ERROR 5
+#define PIMMGR_ERR_CANNOT_DESTROY 6
 
 #define IOCTL_RESULT_IS_ERR(result) (result != 0)
 
