@@ -475,8 +475,10 @@ It does not hurt non-Zaphod configurations and you will have a system
 that is consistent with ours so we can support you better if need be.
 The patch files are
 
-patches/0001-xfree86-workaround-for-Zaphod-mode-problem-with-VCRT.patch
-patches/0002-xfree86-add-some-handy-debug-messages.patch
+patches/<xorg_version>/0001-xfree86-workaround-for-Zaphod-mode-problem-with-VCRT.patch
+patches/<xorg_version>/0002-xfree86-add-some-handy-debug-messages.patch
+
+Where <xorg_version> is the version of X server you are using.
 
 The bug is rather complicated and if you are interested you should read
 the commit message associated with 
@@ -486,14 +488,14 @@ After applying patches, you should rebuild and re-test your system
 before proceeding.
 
 Finally, we should mention one limitation. By default, ATI DDX will
-turn on 1D tiling for all screens. That will result in PCONs 
+turn on tiling for all screens. That will result in PCONs 
 receiving a tiled frame buffer and would further require that the
 PCON understands tiling. At this time, both of our PCONs understand 
 only linear (scanline) frame buffer, so you should turn the tiling 
 off in your xorg.conf.  We will later add tiling support, at which
 time you will be able to go back to tiled buffer.
 
-Since 1D tiling is the default, using X without xorg.conf will
+Since tiling is the default, using X without xorg.conf will
 result in a messy looking screen on your PCON (e.g your monitor
 attached to a DisplayLink dongle). All examples that follow will
 include turning off the tiling support in your GPU driver.
