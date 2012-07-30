@@ -1,0 +1,58 @@
+From 5a359263c726afc9074e71e66b751c523e0f352d Mon Sep 17 00:00:00 2001
+From: Ilija Hadzic <ihadzic@research.bell-labs.com>
+Date: Tue, 1 Nov 2011 12:00:59 -0400
+Subject: [PATCH 1/2] xfree86: workaround for Zaphod mode problem with VCRTCs
+
+X runs a recursive search algorithm when choosing which CRTC is best for
+which connector and uses possible_crtc bitmask when doing that evaluation.
+The problem is that X and DDX have an architectural mismatch.
+Namely, possible_crtcs bitmask is constructed on the driver level
+based on CRTC ID numbers (where ID numbers are 0, 1, 2 and so on, where each
+bit in possible_crtcs bitmak corresponds to a CRTC ID).  On the other hand,
+X has no access to CRTC hardware ID number and uses the place in the CRTC
+list instead of the hardware ID. For single-output systems and most
+non-Zaphod configurations these numbers happen to match.
+
+In Zaphod mode possible_crtc bitmask is always checked against CRTC0,
+which is wrong. However, the world has been "lucky" so far because
+for all GPUs, all CRTCs are fully interchangeable, so the fact
+that a screen in Zaphod mode "thinks" that it picked a CRTC0, while
+it is a CRTC-N for screen N does not expose the bug. This, however,
+does not make things right.
+
+With the introduction of Virtual CRTCs, the bug is exposed because
+Virtual CRTCs cannot be interchanged with physical CRTCs so Zaphod mode
+fails if Virtual CRTCs are used.
+
+This patch works around the issue by checking whether the
+configuration offers only one CRTC is per connector (typical for Zaphod
+mode) and accepts what the configuration offers (leaving the correctness of
+the xorg.conf file to the user). This makes the Zaphod mode work with
+virtual CRTCs, although it is not a "true fix". The "true fix" would
+be to re-architect X such that it has access to CRTC ID and use it when
+checking against possible_crtc mask.
+
+Signed-off-by: Ilija Hadzic <ihadzic@research.bell-labs.com>
+---
+ hw/xfree86/modes/xf86Crtc.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
+
+diff --git a/hw/xfree86/modes/xf86Crtc.c b/hw/xfree86/modes/xf86Crtc.c
+index 6d5e92f..4497614 100644
+--- a/hw/xfree86/modes/xf86Crtc.c
++++ b/hw/xfree86/modes/xf86Crtc.c
+@@ -949,7 +949,10 @@ xf86PickCrtcs(ScrnInfoPtr scrn,
+      * outputs
+      */
+     for (c = 0; c < config->num_crtc; c++) {
+-        if ((output->possible_crtcs & (1 << c)) == 0)
++	if ((config->num_crtc == 1) && (config->num_output == 1))
++	    xf86DrvMsg(scrn->scrnIndex, X_INFO,
++		       "Single output and single crtc system, possible_crtc check skipped\n");
++	else if ((output->possible_crtcs & (1 << c)) == 0)
+             continue;
+ 
+         crtc = config->crtc[c];
+-- 
+1.7.4.1
+
