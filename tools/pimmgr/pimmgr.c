@@ -94,7 +94,7 @@ void print_usage(char *command)
 
 int open_pimmgr_device(void)
 {
-	int fd = open(PIMMGR_DEVICE, O_RDONLY);
+	int fd = open(PIMMGR_DEVICE, O_WRONLY);
 	
 	if (fd < 0) {
 		printf("Cannot open %s: %s\n", PIMMGR_DEVICE, strerror(errno));
