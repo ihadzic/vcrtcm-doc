@@ -31,15 +31,20 @@
 #include <ftw.h>
 
 #define MAX_COMMAND_LEN 35
+#define MAX_ARGHELP_LEN 128
+#define MAX_DESCRIPTION_LEN 1024
 
 /* Operation implementations */
 int do_instantiate(int argc, char **argv);
 int do_destroy(int argc, char **argv);
 int do_info(int argc, char **argv);
+int do_help(int argc, char **argv);
 
 struct operation {
 	char command[MAX_COMMAND_LEN];
 	int argc;
+	char arghelp[MAX_ARGHELP_LEN];
+	char description[MAX_DESCRIPTION_LEN];
 	int (*func)(int argc, char **argv);
 	
 };
@@ -48,19 +53,33 @@ struct operation ops[] = {
 	{
 		.command = "instantiate",
 		.argc = 1,
+		.arghelp = "<pim_name>",
+		.description = "Create a new PCON instance of the PIM identified by pim_name.",
 		.func = do_instantiate,
 	},
 	
 	{
 		.command = "destroy",
 		.argc = 1,
+		.arghelp = "<pconid>",
+		.description = "Destroy the PCON instance identified by pconid.",
 		.func = do_destroy,
 	},
 	
 	{
 		.command = "info",
 		.argc = 0,
+		.arghelp = "",
+		.description = "List all available PIMs and their associated PCON instances.",
 		.func = do_info,
+	},
+
+	{
+		.command = "help",
+		.argc = 0,
+		.arghelp = "",
+		.description = "Display this message.",
+		.func = do_help,
 	}
 };
 
@@ -68,18 +87,8 @@ static int operation_count = sizeof(ops) / sizeof(struct operation);
 
 void print_usage(char *command)
 {
-	int i=0;
-	int j=0;
-	
 	printf("Usage: %s [command] {args}\n\n", command);
-	printf("Supported Commands:\n");
-	
-	for (i=0; i<operation_count; i++) {
-		printf("\t%s", ops[i].command);
-		for (j=0; j<ops[i].argc; j++)
-			printf(" arg%i", j);
-		printf("\n");
-	}
+	printf("Hint: try command \"help\" to see available commands.\n");
 }
 
 int open_pimmgr_device(void)
@@ -185,6 +194,19 @@ int do_info(int argc, char **argv)
 {
 	nftw(PIMMGR_SYSFS_PIM_PATH, sysfs_find_pims, 32, FTW_ACTIONRETVAL);
 	
+	return 0;
+}
+
+int do_help(int argc, char **argv)
+{
+	int i;
+
+	printf("Supported Commands:\n");
+	for (i=0; i<operation_count; i++) {
+		printf("\t%s %s\n", ops[i].command, ops[i].arghelp);
+		printf("\t\t- %s\n", ops[i].description);
+	}
+
 	return 0;
 }
 
