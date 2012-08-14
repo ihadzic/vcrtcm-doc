@@ -149,7 +149,7 @@ int main(int argc, char **argv)
 		cleanup(radeon_vcrtcm_ctl_descriptor);
 		return 1;
 	    }
-	    if (fps <= 0) {
+	    if (fps < 0) {
 		printf("I don't know which Universe do you, bloke, come from, but\n");
 		printf("here on planet Earth, we only do positive frame rates.\n"); 
 		cleanup(radeon_vcrtcm_ctl_descriptor);
