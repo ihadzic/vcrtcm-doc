@@ -27,7 +27,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdint.h>
-#include "pimmgr_tool.h"
+#include "pimmgr.h"
 #include <ftw.h>
 
 #define MAX_COMMAND_LEN 35
