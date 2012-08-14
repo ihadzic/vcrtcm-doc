@@ -29,6 +29,7 @@
 #include <stdint.h>
 #include "pimmgr.h"
 #include <ftw.h>
+#include <errno.h>
 
 #define MAX_COMMAND_LEN 35
 #define MAX_ARGHELP_LEN 128
@@ -96,7 +97,8 @@ int open_pimmgr_device(void)
 	int fd = open(PIMMGR_DEVICE, O_RDONLY);
 	
 	if (fd < 0) {
-		printf("Cannot open pimmgr file, exiting...\n");
+		printf("Cannot open %s: %s\n", PIMMGR_DEVICE, strerror(errno));
+		printf("Exiting...\n");
 		exit(-1);
 	}
 	
