@@ -1,0 +1,1 @@
+ACTION=="add", SUBSYSTEM=="vcrtcm", DEVPATH=="/devices/virtual/vcrtcm/pimmgr", MODE="0222"
