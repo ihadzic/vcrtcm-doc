@@ -85,6 +85,8 @@ struct operation ops[] = {
 };
 
 static int operation_count = sizeof(ops) / sizeof(struct operation);
+static int found_pim = 0;
+static int found_pcon = 0;
 
 void print_usage(char *command)
 {
@@ -165,15 +167,14 @@ int do_destroy(int argc, char **argv)
 	return 0;
 }
 
-int sysfs_find_pims(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
+int sysfs_find_pcons(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
 {
-	if (ftwbuf->level == 1)
-		printf("PIM: %s\n", fpath + ftwbuf->base);
-	
-	if (ftwbuf->level == 2 && typeflag == FTW_D)
+	if (ftwbuf->level == 1 && typeflag == FTW_D) {
 		printf(" --> PCON: %s\n", fpath + ftwbuf->base);
+		found_pcon = 1;
+	}
 	
-	if (ftwbuf->level == 3 && strcmp(fpath + ftwbuf->base, "description") == 0) {
+	if (ftwbuf->level == 2 && strcmp(fpath + ftwbuf->base, "description") == 0) {
 		FILE *f = fopen(fpath, "r");
 		if (f) {
 			static char contents[4096];
@@ -181,21 +182,35 @@ int sysfs_find_pims(const char *fpath, const struct stat *sb, int typeflag, stru
 			size = fread(contents, sizeof(char), 4096, f);
 			if (contents[size-1] == '\n')
 				contents[size-1] = '\0';
-			printf("      -> %s\n", contents);
+			printf("       -> %s\n", contents);
 		}
 		else {
 			printf("cannot open...\n");
 		}
 	}
 	
-		
+	return FTW_CONTINUE;
+}
+
+int sysfs_find_pims(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
+{
+	if (ftwbuf->level == 1) {
+		printf("PIM: %s\n", fpath + ftwbuf->base);
+		found_pim = 1;
+		found_pcon = 0;
+		nftw(fpath, sysfs_find_pcons, 32, FTW_ACTIONRETVAL);
+		if (!found_pcon)
+			printf(" --> No PCONs found...\n");
+	}
+	
 	return FTW_CONTINUE;
 }
 
 int do_info(int argc, char **argv)
 {
 	nftw(PIMMGR_SYSFS_PIM_PATH, sysfs_find_pims, 32, FTW_ACTIONRETVAL);
-	
+	if (!found_pim)
+		printf("No PIMs found...\n");
 	return 0;
 }
 
