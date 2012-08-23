@@ -167,28 +167,49 @@ int do_destroy(int argc, char **argv)
 	return 0;
 }
 
+int sysfs_read_file(const char *base_path, const char *file, char *contents)
+{
+	int size = 0;
+	char path[512];
+	FILE *f = NULL;
+	
+	snprintf(path, 512, "%s/%s", base_path, file);
+	f = fopen(path, "r");
+
+	if (f) {
+		size = fread(contents, sizeof(char), 4096, f);
+		if (size && contents[size-1] == '\n')
+			contents[size-1] = '\0';
+	}
+	return size;
+}
 int sysfs_find_pcons(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
 {
+	static char contents[4096];
+	
 	if (ftwbuf->level == 1 && typeflag == FTW_D) {
+		int result = 0;
+		int attached = 0;
+
 		printf(" --> PCON: %s\n", fpath + ftwbuf->base);
 		found_pcon = 1;
-	}
-	
-	if (ftwbuf->level == 2 && strcmp(fpath + ftwbuf->base, "description") == 0) {
-		FILE *f = fopen(fpath, "r");
-		if (f) {
-			static char contents[4096];
-			int size = 0;
-			size = fread(contents, sizeof(char), 4096, f);
-			if (contents[size-1] == '\n')
-				contents[size-1] = '\0';
-			printf("       -> %s\n", contents);
+		sysfs_read_file(fpath, "description", contents);
+		printf("       -> %s\n", contents);
+
+		result = sysfs_read_file(fpath, "attached", contents);
+		if (!result) {
+			printf("       -> Properties Not Implemented\n");
+			return FTW_CONTINUE;
 		}
-		else {
-			printf("cannot open...\n");
+		attached = atoi(contents);
+		if (attached) {
+			sysfs_read_file(fpath, "fps", contents);
+			printf("       -> Attached, FPS: %s\n", contents);
+		} else {
+			printf("       -> Not Attached\n");
 		}
 	}
-	
+
 	return FTW_CONTINUE;
 }
 
