@@ -275,7 +275,8 @@ int main(int argc, char **argv)
 	
 	for (i=0; i<operation_count; i++)
 	{
-		if (strcmp(operation, ops[i].command) == 0 && validate_args(&ops[i], new_argc)) {
+		if (strncmp(operation, ops[i].command, strlen(operation)) == 0 &&
+		    validate_args(&ops[i], new_argc)) {
 			return ops[i].func(new_argc, new_argv);
 		}
 	}
