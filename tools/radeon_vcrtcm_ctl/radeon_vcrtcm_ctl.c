@@ -52,7 +52,7 @@ void print_usage()
     printf("\t\t?|help -- no arguments\n");
     printf("\t\tfps    -- <farme_rate in fps, default=15>\n"); 
     printf("\t\tstop   -- no arguments\n"); 
-    printf("\t\tattach -- <major, default=0> <minor, default=0>, <flow, default=0>\n"); 
+    printf("\t\tattach -- <pconid, default=0>\n"); 
     printf("\t\tdetach -- no arguments\n"); 
     printf("\t\txmit   -- no arguments\n"); 
     printf("All arguments are optional, but you may get verbally abused\n");
