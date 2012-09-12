@@ -136,7 +136,7 @@ int do_instantiate(int argc, char **argv)
 		return 1;
 	}
 	
-	printf("created pcon with id %u\n", args.result1.pconid);
+	printf("%u\n", args.result1.pconid);
 	
 	return 0;
 }
