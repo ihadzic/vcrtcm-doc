@@ -126,7 +126,7 @@ int do_instantiate(int argc, char **argv)
 		if (result == PIMMGR_ERR_INVALID_PIM)
 			printf("Invalid pim identifier.\n");
 		else if (result == PIMMGR_ERR_NOT_AVAILABLE)
-			printf("No pims of that type are available.\n");
+			printf("No pcons of that type are available.\n");
 		else if (result == PIMMGR_ERR_CANNOT_REGISTER)
 			printf("Error registering pcon with vcrtcm\n");
 		else if (result == PIMMGR_ERR_NOMEM)
