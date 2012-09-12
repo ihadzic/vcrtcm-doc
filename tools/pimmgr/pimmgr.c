@@ -90,8 +90,8 @@ static int found_pcon = 0;
 
 void print_usage(char *command)
 {
-	printf("Usage: %s [command] {args}\n\n", command);
-	printf("Hint: try command \"help\" to see available commands.\n");
+	printf("usage: %s <command> [args]\n", command);
+	printf("type \"%s help\" for more help\n", command);
 }
 
 int open_pimmgr_device(void)
@@ -99,13 +99,13 @@ int open_pimmgr_device(void)
 	int fd = open(PIMMGR_DEVICE, O_WRONLY);
 	
 	if (fd < 0) {
-		printf("Cannot open %s: %s\n", PIMMGR_DEVICE, strerror(errno));
-		printf("Exiting...\n");
+		fprintf(stderr, "error: cannot open %s: %s\n", PIMMGR_DEVICE, strerror(errno));
 		exit(-1);
 	}
 	
 	return fd;
 }
+
 int do_instantiate(int argc, char **argv)
 {
 	struct pimmgr_ioctl_args args;
@@ -120,24 +120,23 @@ int do_instantiate(int argc, char **argv)
 	
 	result = ioctl(fd, PIMMGR_IOC_INSTANTIATE, &args);
 	
-	printf("IOCTL result %li\n", result);
+	//printf("IOCTL result %li\n", result);
 	
 	if (IOCTL_RESULT_IS_ERR(result)) {
 		if (result == PIMMGR_ERR_INVALID_PIM)
-			printf("Invalid pim identifier.\n");
+			fprintf(stderr, "error: invalid pim identifier \"%s\"\n", type);
 		else if (result == PIMMGR_ERR_NOT_AVAILABLE)
-			printf("No pcons of that type are available.\n");
+			fprintf(stderr, "error: no available pcons of type \"%s\"\n", type);
 		else if (result == PIMMGR_ERR_CANNOT_REGISTER)
-			printf("Error registering pcon with vcrtcm\n");
+			fprintf(stderr, "error: unable to register pcon with vcrtcm\n");
 		else if (result == PIMMGR_ERR_NOMEM)
-			printf("Out of memory error while instantiating pcon\n");
+			fprintf(stderr, "error: out of memory while instantiating pcon\n");
 		else
-			printf("Unknown error occurred.\n");
+			fprintf(stderr, "error: unknown error occurred\n");
 		return 1;
 	}
 	
-	printf("Success\n");
-	printf("Created pconid %u\n", args.result1.pconid);
+	printf("created pcon with id %u\n", args.result1.pconid);
 	
 	return 0;
 }
@@ -155,15 +154,13 @@ int do_destroy(int argc, char **argv)
 	result = ioctl(fd, PIMMGR_IOC_DESTROY, &args);
 	if (IOCTL_RESULT_IS_ERR(result)) {
 		if (result == PIMMGR_ERR_INVALID_PCON)
-			printf("Invalid pconid.\n");
+			fprintf(stderr, "error: invalid pconid (%u)\n", args.arg1.pconid);
 		else
-			printf("Unknown error occured.\n");
+			fprintf(stderr, "error: unknown error occured\n");
 		return 1;
 	}
 	
-	printf("Success\n");
-	printf("Destroyed pconid %u\n", args.arg1.pconid);
-	
+	printf("destroyed pcon with id %u\n", args.arg1.pconid);
 	return 0;
 }
 
@@ -183,6 +180,7 @@ int sysfs_read_file(const char *base_path, const char *file, char *contents)
 	}
 	return size;
 }
+
 int sysfs_find_pcons(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
 {
 	static char contents[4096];
@@ -198,15 +196,15 @@ int sysfs_find_pcons(const char *fpath, const struct stat *sb, int typeflag, str
 
 		result = sysfs_read_file(fpath, "attached", contents);
 		if (!result) {
-			printf("       -> Properties Not Implemented\n");
+			printf("       -> properties not implemented\n");
 			return FTW_CONTINUE;
 		}
 		attached = atoi(contents);
 		if (attached) {
 			sysfs_read_file(fpath, "fps", contents);
-			printf("       -> Attached, FPS: %s\n", contents);
+			printf("       -> attached, FPS = %s\n", contents);
 		} else {
-			printf("       -> Not Attached\n");
+			printf("       -> unattached\n");
 		}
 	}
 
@@ -221,7 +219,7 @@ int sysfs_find_pims(const char *fpath, const struct stat *sb, int typeflag, stru
 		found_pcon = 0;
 		nftw(fpath, sysfs_find_pcons, 32, FTW_ACTIONRETVAL);
 		if (!found_pcon)
-			printf(" --> No PCONs found...\n");
+			printf(" --> no pcons found\n");
 	}
 	
 	return FTW_CONTINUE;
@@ -231,7 +229,7 @@ int do_info(int argc, char **argv)
 {
 	nftw(PIMMGR_SYSFS_PIM_PATH, sysfs_find_pims, 32, FTW_ACTIONRETVAL);
 	if (!found_pim)
-		printf("No PIMs found...\n");
+		printf("no pims found\n");
 	return 0;
 }
 
@@ -239,7 +237,7 @@ int do_help(int argc, char **argv)
 {
 	int i;
 
-	printf("Supported Commands:\n");
+	printf("available commands:\n");
 	for (i=0; i<operation_count; i++) {
 		printf("\t%s %s\n", ops[i].command, ops[i].arghelp);
 		printf("\t\t- %s\n", ops[i].description);
@@ -251,7 +249,7 @@ int do_help(int argc, char **argv)
 int validate_args(struct operation *op, int argc)
 {
 	if (!(op->argc <= argc)) {
-		printf("Not enough arguments...\n");
+		printf("error: missing arguments\n");
 		exit(0);
 	}
 	
@@ -281,7 +279,7 @@ int main(int argc, char **argv)
 		}
 	}
 	
-	printf("Bad command...\n");
+	fprintf(stderr, "error: bad command\n");
 	return 0;
 }
 
