@@ -1,0 +1,133 @@
+From 6c92b4ddf4091582bc2b05d4da28cace87688019 Mon Sep 17 00:00:00 2001
+From: Ilija Hadzic <ihadzic@research.bell-labs.com>
+Date: Mon, 28 May 2012 16:50:02 -0400
+Subject: [PATCH 3/6] xf86drm: add new function to open the render node
+
+New function drmOpenRenderNode to be used for opening
+/dev/dri/renderD<NN> nodes. There are not three node types:
+legacy, control and render node. Their name is constructed
+in new function called drmConstructNodeName depending on the
+node type and used in open() system call.
+
+Signed-off-by: Ilija Hadzic <ihadzic@research.bell-labs.com>
+---
+ xf86drm.c |   52 ++++++++++++++++++++++++++++++++++++++++++++++++----
+ xf86drm.h |    4 +++-
+ 2 files changed, 51 insertions(+), 5 deletions(-)
+
+diff --git a/xf86drm.c b/xf86drm.c
+index d7b1a26..d6e094f 100644
+--- a/xf86drm.c
++++ b/xf86drm.c
+@@ -87,6 +87,7 @@
+ 
+ #define DRM_NODE_CONTROL 0
+ #define DRM_NODE_LEGACY 1
++#define DRM_NODE_RENDER 2
+ 
+ static drmServerInfoPtr drm_server_info;
+ 
+@@ -285,6 +286,21 @@ static int chown_check_return(const char *path, uid_t owner, gid_t group)
+ 	return -1;
+ }
+ 
++static void drmConstructNodeName(char *buf, int minor, int type)
++{
++    switch (type) {
++    case DRM_NODE_CONTROL:
++	sprintf(buf, DRM_CONTROL_NODE_NAME, DRM_DIR_NAME, minor);
++	break;
++    case DRM_NODE_RENDER:
++	sprintf(buf, DRM_RENDER_NODE_NAME, DRM_DIR_NAME, minor);
++	break;
++    case DRM_NODE_LEGACY:
++    default:
++	sprintf(buf, DRM_DEV_NAME, DRM_DIR_NAME, minor);
++    }
++}
++
+ /**
+  * Open the DRM device, creating it if necessary.
+  *
+@@ -308,8 +324,8 @@ static int drmOpenDevice(long dev, int minor, int type)
+     uid_t           user    = DRM_DEV_UID;
+     gid_t           group   = DRM_DEV_GID, serv_group;
+     
+-    sprintf(buf, type ? DRM_DEV_NAME : DRM_CONTROL_DEV_NAME, DRM_DIR_NAME, minor);
+-    drmMsg("drmOpenDevice: node name is %s\n", buf);
++    drmConstructNodeName(buf, minor, type);
++    drmMsg("%s: node name is %s\n", __func__, buf);
+ 
+     if (drm_server_info) {
+ 	drm_server_info->get_perms(&serv_group, &serv_mode);
+@@ -416,8 +432,8 @@ static int drmOpenMinor(int minor, int create, int type)
+     
+     if (create)
+ 	return drmOpenDevice(makedev(DRM_MAJOR, minor), minor, type);
+-    
+-    sprintf(buf, type ? DRM_DEV_NAME : DRM_CONTROL_DEV_NAME, DRM_DIR_NAME, minor);
++
++    drmConstructNodeName(buf, minor, type);
+     if ((fd = open(buf, O_RDWR, 0)) >= 0)
+ 	return fd;
+     return -errno;
+@@ -655,6 +671,34 @@ int drmOpenControl(int minor)
+     return drmOpenMinor(minor, 0, DRM_NODE_CONTROL);
+ }
+ 
++int drmOpenRenderNode(int minor)
++{
++    int fd;
++    drmVersionPtr gv;
++    drmSetVersion sv;
++
++    fd = drmOpenMinor(minor, 1, DRM_NODE_RENDER);
++    if (fd >= 0) {
++	if (!(gv = drmGetVersion(fd))) {
++	    drmMsg("%s: DRM not available\n", __func__);
++	    close(fd);
++	    return -1;
++	}
++	drmFreeVersion(gv);
++	sv.drm_di_major = 1;
++	sv.drm_di_minor = 4;
++	sv.drm_dd_major = -1;	/* Don't care */
++	sv.drm_dd_minor = -1;	/* Don't care */
++	if (drmSetInterfaceVersion(fd, &sv)) {
++	    drmMsg("%s: cannot set interface version\n", __func__);
++	    close(fd);
++	    return -1;
++	}
++	return fd;
++    }
++    return -1;
++}
++
+ /**
+  * Free the version information returned by drmGetVersion().
+  *
+diff --git a/xf86drm.h b/xf86drm.h
+index 0658a85..d14d68f 100644
+--- a/xf86drm.h
++++ b/xf86drm.h
+@@ -78,7 +78,8 @@ extern "C" {
+ 
+ #define DRM_DIR_NAME  "/dev/dri"
+ #define DRM_DEV_NAME  "%s/card%d"
+-#define DRM_CONTROL_DEV_NAME  "%s/controlD%d"
++#define DRM_CONTROL_NODE_NAME  "%s/controlD%d"
++#define DRM_RENDER_NODE_NAME  "%s/renderD%d"
+ #define DRM_PROC_NAME "/proc/dri/" /* For backward Linux compatibility */
+ 
+ #define DRM_ERR_NO_DEVICE  (-1001)
+@@ -546,6 +547,7 @@ do {	register unsigned int __old __asm("o0");		\
+ extern int           drmAvailable(void);
+ extern int           drmOpen(const char *name, const char *busid);
+ extern int drmOpenControl(int minor);
++extern int drmOpenRenderNode(int minor);
+ extern int           drmClose(int fd);
+ extern drmVersionPtr drmGetVersion(int fd);
+ extern drmVersionPtr drmGetLibVersion(int fd);
+-- 
+1.7.8.4
+

@@ -1,0 +1,32 @@
+From ad76160b19401998ce2948e2ce8fdd57763e5439 Mon Sep 17 00:00:00 2001
+From: Ilija Hadzic <ihadzic@research.bell-labs.com>
+Date: Tue, 29 May 2012 21:04:46 -0400
+Subject: [PATCH 5/6] xf86drm: check render nodes in drmGetDeviceNameFromFd
+
+File descriptor passed to drmGetDeviceNameFromFd
+can be from a render node, so we have to check these too.
+
+Signed-off-by: Ilija Hadzic <ihadzic@research.bell-labs.com>
+---
+ xf86drm.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
+
+diff --git a/xf86drm.c b/xf86drm.c
+index 0d2a755..e4869b9 100644
+--- a/xf86drm.c
++++ b/xf86drm.c
+@@ -2581,7 +2581,10 @@ char *drmGetDeviceNameFromFd(int fd)
+ 	d = sbuf.st_rdev;
+ 
+ 	for (i = 0; i < DRM_MAX_MINOR; i++) {
+-		snprintf(name, sizeof name, DRM_DEV_NAME, DRM_DIR_NAME, i);
++		drmConstructNodeName(name, i, DRM_NODE_LEGACY);
++		if (stat(name, &sbuf) == 0 && sbuf.st_rdev == d)
++			break;
++		drmConstructNodeName(name, i + 128, DRM_NODE_RENDER);
+ 		if (stat(name, &sbuf) == 0 && sbuf.st_rdev == d)
+ 			break;
+ 	}
+-- 
+1.7.8.4
+

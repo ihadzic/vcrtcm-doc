@@ -1,0 +1,68 @@
+From 128ed5ed8f2b7e97490c21cb70286daa7e3f8c22 Mon Sep 17 00:00:00 2001
+From: Ilija Hadzic <ihadzic@research.bell-labs.com>
+Date: Mon, 28 May 2012 20:56:53 -0400
+Subject: [PATCH 3/3] kms: try to open a render node if one is specified
+
+If RADEONInfoRec specifies a valid render node minor number
+(which came from xorg.conf option), try to open and use the
+node.
+
+Signed-off-by: Ilija Hadzic <ihadzic@research.bell-labs.com>
+---
+ src/radeon_kms.c |   33 +++++++++++++++++++++------------
+ 1 files changed, 21 insertions(+), 12 deletions(-)
+
+diff --git a/src/radeon_kms.c b/src/radeon_kms.c
+index 7c72e54..531c7de 100644
+--- a/src/radeon_kms.c
++++ b/src/radeon_kms.c
+@@ -461,25 +461,34 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
+ 	goto out;
+     }
+ 
++    if (info->render_node_minor == -1) {
+ #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,9,99,901,0)
+-    XNFasprintf(&busid, "pci:%04x:%02x:%02x.%d",
+-                dev->domain, dev->bus, dev->dev, dev->func);
++	XNFasprintf(&busid, "pci:%04x:%02x:%02x.%d",
++		    dev->domain, dev->bus, dev->dev, dev->func);
+ #else
+-    busid = XNFprintf("pci:%04x:%02x:%02x.%d",
+-		      dev->domain, dev->bus, dev->dev, dev->func);
++	busid = XNFprintf("pci:%04x:%02x:%02x.%d",
++			  dev->domain, dev->bus, dev->dev, dev->func);
+ #endif
+ 
+-    info->dri2.drm_fd = drmOpen("radeon", busid);
+-    if (info->dri2.drm_fd == -1) {
++	info->dri2.drm_fd = drmOpen("radeon", busid);
++	if (info->dri2.drm_fd == -1) {
+ 
+-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+-		   "[drm] Failed to open DRM device for %s: %s\n",
+-		   busid, strerror(errno));
++	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
++		       "[drm] Failed to open DRM device for %s: %s\n",
++		       busid, strerror(errno));
++	    free(busid);
++	    return FALSE;
++	}
+ 	free(busid);
+-	return FALSE;
++    } else {
++	info->dri2.drm_fd = drmOpenRenderNode(info->render_node_minor);
++	if (info->dri2.drm_fd == -1) {
++	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
++		       "[drm] Failed to open render node %d: %s\n",
++		       info->render_node_minor, strerror(errno));
++	    return FALSE;
++	}
+     }
+-    free(busid);
+-
+     /* Check that what we opened was a master or a master-capable FD,
+      * by setting the version of the interface we'll use to talk to it.
+      * (see DRIOpenDRMMaster() in DRI1)
+-- 
+1.7.8.4
+

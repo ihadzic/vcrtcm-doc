@@ -1,0 +1,33 @@
+From c6ac095e63dff42f25edf2eb2fbe6b64d2591179 Mon Sep 17 00:00:00 2001
+From: Ilija Hadzic <ihadzic@research.bell-labs.com>
+Date: Mon, 28 May 2012 18:53:53 -0400
+Subject: [PATCH 4/6] xf86drm: log the status in drmOpenMinor
+
+When drmOpenMinor calls open, log the status returned
+by the system call.
+
+Signed-off-by: Ilija Hadzic <ihadzic@research.bell-labs.com>
+---
+ xf86drm.c |    6 +++++-
+ 1 files changed, 5 insertions(+), 1 deletions(-)
+
+diff --git a/xf86drm.c b/xf86drm.c
+index d6e094f..0d2a755 100644
+--- a/xf86drm.c
++++ b/xf86drm.c
+@@ -434,7 +434,11 @@ static int drmOpenMinor(int minor, int create, int type)
+ 	return drmOpenDevice(makedev(DRM_MAJOR, minor), minor, type);
+ 
+     drmConstructNodeName(buf, minor, type);
+-    if ((fd = open(buf, O_RDWR, 0)) >= 0)
++    drmMsg("%s: node name is %s\n", __func__, buf);
++    fd = open(buf, O_RDWR, 0);
++    drmMsg("%s: open result is %d, (%s)\n",
++	   __func__, fd, fd < 0 ? strerror(errno) : "OK");
++    if (fd >= 0)
+ 	return fd;
+     return -errno;
+ }
+-- 
+1.7.8.4
+

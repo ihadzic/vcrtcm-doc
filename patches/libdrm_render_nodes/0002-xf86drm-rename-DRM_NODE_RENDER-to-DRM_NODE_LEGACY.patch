@@ -1,0 +1,79 @@
+From 34bead16b971cae8fa5645c221589f5523933984 Mon Sep 17 00:00:00 2001
+From: Ilija Hadzic <ihadzic@research.bell-labs.com>
+Date: Mon, 28 May 2012 15:56:19 -0400
+Subject: [PATCH 2/6] xf86drm: rename DRM_NODE_RENDER to DRM_NODE_LEGACY
+
+Physical card node is not a render node, but a legacy node.
+Rename accordingly in preparation to add real render nodes
+
+Signed-off-by: Ilija Hadzic <ihadzic@research.bell-labs.com>
+---
+ tests/dristat.c |    2 +-
+ xf86drm.c       |   10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/tests/dristat.c b/tests/dristat.c
+index 900a3e6..0d06985 100644
+--- a/tests/dristat.c
++++ b/tests/dristat.c
+@@ -264,7 +264,7 @@ int main(int argc, char **argv)
+ 
+     for (i = 0; i < 16; i++) if (!minor || i == minor) {
+ 	sprintf(buf, DRM_DEV_NAME, DRM_DIR_NAME, i);
+-	fd = drmOpenMinor(i, 1, DRM_NODE_RENDER);
++	fd = drmOpenMinor(i, 1, DRM_NODE_LEGACY);
+ 	if (fd >= 0) {
+ 	    printf("%s\n", buf);
+ 	    if (mask & DRM_BUSID)   getbusid(fd);
+diff --git a/xf86drm.c b/xf86drm.c
+index 2230a98..d7b1a26 100644
+--- a/xf86drm.c
++++ b/xf86drm.c
+@@ -86,7 +86,7 @@
+ #define DRM_MSG_VERBOSITY 3
+ 
+ #define DRM_NODE_CONTROL 0
+-#define DRM_NODE_RENDER 1
++#define DRM_NODE_LEGACY 1
+ 
+ static drmServerInfoPtr drm_server_info;
+ 
+@@ -440,7 +440,7 @@ int drmAvailable(void)
+     int           retval = 0;
+     int           fd;
+ 
+-    if ((fd = drmOpenMinor(0, 1, DRM_NODE_RENDER)) < 0) {
++    if ((fd = drmOpenMinor(0, 1, DRM_NODE_LEGACY)) < 0) {
+ #ifdef __linux__
+ 	/* Try proc for backward Linux compatibility */
+ 	if (!access("/proc/dri/0", R_OK))
+@@ -481,7 +481,7 @@ static int drmOpenByBusid(const char *busid)
+ 
+     drmMsg("drmOpenByBusid: Searching for BusID %s\n", busid);
+     for (i = 0; i < DRM_MAX_MINOR; i++) {
+-	fd = drmOpenMinor(i, 1, DRM_NODE_RENDER);
++	fd = drmOpenMinor(i, 1, DRM_NODE_LEGACY);
+ 	drmMsg("drmOpenByBusid: drmOpenMinor returns %d\n", fd);
+ 	if (fd >= 0) {
+ 	    /* We need to try for 1.4 first for proper PCI domain support
+@@ -556,7 +556,7 @@ static int drmOpenByName(const char *name)
+      * already in use.  If it's in use it will have a busid assigned already.
+      */
+     for (i = 0; i < DRM_MAX_MINOR; i++) {
+-	if ((fd = drmOpenMinor(i, 1, DRM_NODE_RENDER)) >= 0) {
++	if ((fd = drmOpenMinor(i, 1, DRM_NODE_LEGACY)) >= 0) {
+ 	    if ((version = drmGetVersion(fd))) {
+ 		if (!strcmp(version->name, name)) {
+ 		    drmFreeVersion(version);
+@@ -600,7 +600,7 @@ static int drmOpenByName(const char *name)
+ 			if (*pt) { /* Found busid */
+ 			    return drmOpenByBusid(++pt);
+ 			} else { /* No busid */
+-			    return drmOpenDevice(strtol(devstring, NULL, 0),i, DRM_NODE_RENDER);
++			    return drmOpenDevice(strtol(devstring, NULL, 0), i, DRM_NODE_LEGACY);
+ 			}
+ 		    }
+ 		}
+-- 
+1.7.8.4
+

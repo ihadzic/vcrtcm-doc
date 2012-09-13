@@ -1,0 +1,145 @@
+From 7aebe2f4f3afb2a944888610a0389109f4c99248 Mon Sep 17 00:00:00 2001
+From: Ilija Hadzic <ihadzic@research.bell-labs.com>
+Date: Wed, 21 Mar 2012 14:41:40 -0400
+Subject: [PATCH 1/6] libdrm: add functions for render node manipulation
+
+Implement the user-space side of drm_render_node_create
+and drm_render_node_remove ioctls. The new functions
+are drmCreateRenderNode and drmRemoveRenderNode.
+
+v2: - add planes
+
+Signed-off-by: Ilija Hadzic <ihadzic@research.bell-labs.com>
+---
+ include/drm/drm.h      |    2 +
+ include/drm/drm_mode.h |   18 +++++++++++++++
+ xf86drm.c              |   58 ++++++++++++++++++++++++++++++++++++++++++++++++
+ xf86drm.h              |    6 +++++
+ 4 files changed, 84 insertions(+), 0 deletions(-)
+
+diff --git a/include/drm/drm.h b/include/drm/drm.h
+index 753d2fc..7d82130 100644
+--- a/include/drm/drm.h
++++ b/include/drm/drm.h
+@@ -650,6 +650,8 @@ struct drm_prime_handle {
+ #define DRM_IOCTL_GEM_FLINK		DRM_IOWR(0x0a, struct drm_gem_flink)
+ #define DRM_IOCTL_GEM_OPEN		DRM_IOWR(0x0b, struct drm_gem_open)
+ #define DRM_IOCTL_GET_CAP		DRM_IOWR(0x0c, struct drm_get_cap)
++#define DRM_IOCTL_RENDER_NODE_CREATE    DRM_IOWR(0x0d, struct drm_render_node_create)
++#define DRM_IOCTL_RENDER_NODE_REMOVE    DRM_IOWR(0x0e, struct drm_render_node_remove)
+ 
+ #define DRM_IOCTL_SET_UNIQUE		DRM_IOW( 0x10, struct drm_unique)
+ #define DRM_IOCTL_AUTH_MAGIC		DRM_IOW( 0x11, struct drm_auth)
+diff --git a/include/drm/drm_mode.h b/include/drm/drm_mode.h
+index f36c61a..200f669 100644
+--- a/include/drm/drm_mode.h
++++ b/include/drm/drm_mode.h
+@@ -437,4 +437,22 @@ struct drm_mode_destroy_dumb {
+ 	__u32 handle;
+ };
+ 
++/*
++ * render node create and remove functions
++ * if crtc/encoders/connectors all == 0 then gpgpu node
++ */
++struct drm_render_node_create {
++	__u32 node_minor_id;
++	__u32 num_crtc;
++	__u32 num_encoder;
++	__u32 num_connector;
++	__u32 num_plane;
++	__u32 pad;
++	__u64 id_list_ptr;
++};
++
++struct drm_render_node_remove {
++	__u32 node_minor_id;
++};
++
+ #endif
+diff --git a/xf86drm.c b/xf86drm.c
+index 6ea068f..2230a98 100644
+--- a/xf86drm.c
++++ b/xf86drm.c
+@@ -2542,3 +2542,61 @@ char *drmGetDeviceNameFromFd(int fd)
+ 
+ 	return strdup(name);
+ }
++
++/**
++ * Create a new render node.
++ *
++ * \param fd file descriptor.
++ * \param minor pointer where to put the minor of the new node.
++ * \param num_crtc number of CRTCs to assign to the new node.
++ * \param num_encoder number of encoders to assign to the new node.
++ * \param num_connector number of connectors to assign to the new node.
++ * \param id_list list of CRTC/encoder/connector IDs.
++ *
++ * \return zero on success, or a negative value on failure.
++ *
++ * \internal
++ * Issues an ioctl to the kernel to create a new render node
++ * and popluates the variable pointed by *minor with the new minor
++ * device number.
++ */
++int drmCreateRenderNode(int fd, int *minor,
++			int num_crtc, int num_encoder,
++			int num_connector, int num_plane,
++			uint32_t *id_list)
++{
++	struct drm_render_node_create node;
++	int r;
++
++	node.num_crtc = num_crtc;
++	node.num_encoder = num_encoder;
++	node.num_connector = num_connector;
++	node.num_plane = num_plane;
++	node.id_list_ptr = (uint64_t)(unsigned long)id_list;
++	r = drmIoctl(fd, DRM_IOCTL_RENDER_NODE_CREATE, &node);
++	if (!r)
++		*minor = node.node_minor_id;
++	return r;
++}
++
++/**
++ * Remove the render node.
++ *
++ * \param fd file descriptor.
++ * \param minor minor device number to remove.
++ *
++ * \return zero on success, or a negative value on failure.
++ *
++ * \internal
++ * Issues an ioctl to the kernel to remove a new render node
++ * identified by the file descriptor and the minor device number.
++ */
++int drmRemoveRenderNode(int fd, int minor)
++{
++	struct drm_render_node_remove node;
++	int r;
++
++	node.node_minor_id = minor;
++	r = drmIoctl(fd, DRM_IOCTL_RENDER_NODE_REMOVE, &node);
++	return r;
++}
+diff --git a/xf86drm.h b/xf86drm.h
+index 76eb94e..0658a85 100644
+--- a/xf86drm.h
++++ b/xf86drm.h
+@@ -701,6 +701,12 @@ extern void drmMsg(const char *format, ...);
+ extern int drmSetMaster(int fd);
+ extern int drmDropMaster(int fd);
+ 
++extern int drmCreateRenderNode(int fd, int *minor,
++			       int num_crtc, int num_encoder,
++			       int num_connector, int num_plane,
++			       uint32_t *id_list);
++extern int drmRemoveRenderNode(int fd, int minor);
++
+ #define DRM_EVENT_CONTEXT_VERSION 2
+ 
+ typedef struct _drmEventContext {
+-- 
+1.7.8.4
+

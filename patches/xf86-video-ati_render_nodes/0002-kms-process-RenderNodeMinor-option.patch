@@ -1,0 +1,83 @@
+From 8af9a996c55429d0be0b24d9c4c76b06d77f2463 Mon Sep 17 00:00:00 2001
+From: Ilija Hadzic <ihadzic@research.bell-labs.com>
+Date: Sun, 27 May 2012 19:44:25 -0400
+Subject: [PATCH 2/3] kms: process RenderNodeMinor option
+
+Process the new RenderNodeMinor option and set the field
+in RADEONInfoRec structure that holds the render node
+minor number.
+
+Signed-off-by: Ilija Hadzic <ihadzic@research.bell-labs.com>
+---
+ src/radeon.h        |    3 +++
+ src/radeon_driver.c |    3 +++
+ src/radeon_kms.c    |   18 ++++++++++++++++++
+ 3 files changed, 24 insertions(+), 0 deletions(-)
+
+diff --git a/src/radeon.h b/src/radeon.h
+index 36405b2..0f49973 100644
+--- a/src/radeon.h
++++ b/src/radeon.h
+@@ -1040,6 +1040,9 @@ typedef struct {
+ 
+     /* Perform vsync'ed SwapBuffers? */
+     Bool swapBuffersWait;
++
++    /* Use render node instead of legacy GPU card */
++    int render_node_minor;
+ } RADEONInfoRec, *RADEONInfoPtr;
+ 
+ #define RADEONWaitForFifo(pScrn, entries)				\
+diff --git a/src/radeon_driver.c b/src/radeon_driver.c
+index 077f9a4..9fc0c55 100644
+--- a/src/radeon_driver.c
++++ b/src/radeon_driver.c
+@@ -2113,6 +2113,9 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
+ 	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Using ATOMBIOS for R4xx chip\n");
+     }
+ 
++    /* UMS always uses legacy nodes */
++    info->render_node_minor = -1;
++
+     return TRUE;
+ }
+ 
+diff --git a/src/radeon_kms.c b/src/radeon_kms.c
+index f2a4469..7c72e54 100644
+--- a/src/radeon_kms.c
++++ b/src/radeon_kms.c
+@@ -335,6 +335,7 @@ static Bool RADEONPreInitChipType_KMS(ScrnInfoPtr pScrn)
+     RADEONInfoPtr  info   = RADEONPTR(pScrn);
+     uint32_t cmd_stat;
+     int i;
++    int r;
+ 
+     info->Chipset = PCI_DEV_DEVICE_ID(info->PciInfo);
+     pScrn->chipset = (char *)xf86TokenToString(RADEONChipsets, info->Chipset);
+@@ -408,6 +409,23 @@ static Bool RADEONPreInitChipType_KMS(ScrnInfoPtr pScrn)
+ 					     info->Chipset != PCI_CHIP_RN50_515E &&
+ 					     info->Chipset != PCI_CHIP_RN50_5969);
+ #endif
++
++    r = xf86GetOptValInteger(info->Options, OPTION_RENDER_NODE_MINOR,
++			     &info->render_node_minor);
++    if (r) {
++	if ((info->render_node_minor < 128) || (info->render_node_minor > 255)) {
++	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
++		       "Invalid render node minor number\n");
++	    return FALSE;
++	} else
++	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
++		       "Using render node minor number %d\n",
++		       info->render_node_minor);
++    } else {
++	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Using legacy GPU node\n");
++	info->render_node_minor = -1;
++    }
++
+     return TRUE;
+ }
+ 
+-- 
+1.7.8.4
+
