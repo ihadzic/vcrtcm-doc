@@ -169,8 +169,8 @@ int main(int argc, char **argv)
 	
     case 5: 
 	{
-	    uint32_t pconid = 0;
-	    if (argc>=5) pconid = (uint32_t)strtoll(argv[4], NULL, 0); 
+	    int pconid = 0;
+	    if (argc>=5) pconid = (int)strtoll(argv[4], NULL, 0); 
 	    printf("Attach, device %s, pconid %u\n", dev_path, pconid);
 	    radeon_vcrtcm_ctl_descriptor -> op_code = RADEON_VCRTCM_CTL_OP_CODE_ATTACH; 
 	    radeon_vcrtcm_ctl_descriptor -> arg1.pconid = pconid;
