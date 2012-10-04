@@ -17,8 +17,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#define _XOPEN_SOURCE 500
-#define _GNU_SOURCE
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,6 +29,7 @@
 #include "pimmgr.h"
 #include <ftw.h>
 #include <errno.h>
+#include <unistd.h>
 
 #define MAX_COMMAND_LEN 35
 #define MAX_ARGHELP_LEN 128
@@ -198,54 +198,105 @@ int sysfs_read_file(const char *base_path, const char *file, char *contents)
 	return size;
 }
 
-int sysfs_find_pcons(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
+/*
+ * return the number of pcons found or a negative value on error
+ */
+int sysfs_find_pcons(const char *pim_path)
 {
 	static char contents[4096];
-	
-	if (ftwbuf->level == 1 && typeflag == FTW_D) {
-		int result = 0;
-		int attached = 0;
+	char pcon_path[PATH_MAX];
+	struct stat pcon_stat;
+	struct dirent *de;
+	DIR *d;
+	int attached;
+	int num_pcons;
+	int result;
 
-		printf(" --> PCON: %s\n", fpath + ftwbuf->base);
-		found_pcon = 1;
-		sysfs_read_file(fpath, "description", contents);
+	num_pcons = 0;
+	d = opendir(pim_path);
+	if (!d) {
+		fprintf(stderr, "error: cannot open %s: %s\n",
+			pim_path, strerror(errno));
+		return -1;
+	}
+	while ((de = readdir(d)) != NULL) {
+		if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
+			continue;
+		snprintf(pcon_path, sizeof(pcon_path), "%s/%s",
+			 pim_path, de->d_name);
+
+		/* if the entry is not a directory then continue */
+		if (stat(pcon_path, &pcon_stat) == -1) {
+			fprintf(stderr, "error: cannot stat %s: %s\n",
+				pcon_path, strerror(errno));
+			continue;
+		}
+		if (!S_ISDIR(pcon_stat.st_mode))
+			continue;
+
+		num_pcons++;
+		printf(" --> PCON: %s\n", de->d_name);
+		sysfs_read_file(pcon_path, "description", contents);
 		printf("       -> %s\n", contents);
-
-		result = sysfs_read_file(fpath, "attached", contents);
+		result = sysfs_read_file(pcon_path, "attached", contents);
 		if (!result) {
 			printf("       -> properties not implemented\n");
-			return FTW_CONTINUE;
+			continue;
 		}
 		attached = atoi(contents);
 		if (attached) {
-			sysfs_read_file(fpath, "fps", contents);
+			sysfs_read_file(pcon_path, "fps", contents);
 			printf("       -> attached, FPS = %s\n", contents);
-		} else {
+		} else
 			printf("       -> unattached\n");
-		}
 	}
-
-	return FTW_CONTINUE;
+	closedir(d);
+	return num_pcons;
 }
 
-int sysfs_find_pims(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
+/*
+ * return the number of pims found or a negative value on error
+ */
+int sysfs_find_pims(const char *pims_path)
 {
-	if (ftwbuf->level == 1) {
-		printf("PIM: %s\n", fpath + ftwbuf->base);
-		found_pim = 1;
-		found_pcon = 0;
-		nftw(fpath, sysfs_find_pcons, 32, FTW_ACTIONRETVAL);
-		if (!found_pcon)
+	char pim_path[PATH_MAX];
+	struct dirent *de;
+	DIR *d;
+	int num_pims, num_pcons;
+
+	num_pims = 0;
+	d = opendir(pims_path);
+	if (!d) {
+		fprintf(stderr, "error: cannot open %s: %s\n",
+			pims_path, strerror(errno));
+		return -1;
+	}
+	while ((de = readdir(d)) != NULL) {
+		if (!strcmp(de->d_name, ".") ||!strcmp(de->d_name, ".."))
+			continue;
+		num_pims++;
+		printf("PIM: %s\n", de->d_name);
+		snprintf(pim_path, sizeof(pim_path), "%s/%s",
+			 pims_path, de->d_name);
+		num_pcons = sysfs_find_pcons(pim_path);
+		if (num_pcons < 0) {
+			closedir(d);
+			return num_pcons;
+		} else if (num_pcons == 0)
 			printf(" --> no pcons found\n");
 	}
-
-	return FTW_CONTINUE;
+	closedir(d);
+	return num_pims;
 }
 
 int do_info(int argc, char **argv)
 {
-	nftw(PIMMGR_SYSFS_PIM_PATH, sysfs_find_pims, 32, FTW_ACTIONRETVAL);
-	if (!found_pim)
+	int num_pims;
+
+	num_pims = sysfs_find_pims(PIMMGR_SYSFS_PIM_PATH);
+	if (num_pims < 0)
+		return num_pims;
+	if (num_pims == 0)
 		printf("no pims found\n");
 	return 0;
 }
