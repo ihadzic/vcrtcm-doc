@@ -105,6 +105,15 @@ int open_pimmgr_device(void)
 	return fd;
 }
 
+void close_pimmgr_device(int fd)
+{
+	if (close(fd) == -1) {
+		fprintf(stderr, "error: cannot close %s: %s\n",
+			PIMMGR_DEVICE, strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+}
+
 int do_instantiate(int argc, char **argv)
 {
 	struct pimmgr_ioctl_args args;
@@ -118,6 +127,8 @@ int do_instantiate(int argc, char **argv)
 	args.arg2.hints = 0;
 
 	result = ioctl(fd, PIMMGR_IOC_INSTANTIATE, &args);
+	close_pimmgr_device(fd);
+	//printf("IOCTL result %li\n", result);
 
 	if (errno) {
 		switch (errno) {
@@ -153,6 +164,8 @@ int do_destroy(int argc, char **argv)
 	args.arg1.pconid = (uint32_t) atoll(argv[0]);
 
 	result = ioctl(fd, PIMMGR_IOC_DESTROY, &args);
+	close_pimmgr_device(fd);
+
 	if (errno) {
 		switch (errno) {
 			case EINVAL:
@@ -180,6 +193,7 @@ int sysfs_read_file(const char *base_path, const char *file, char *contents)
 		size = fread(contents, sizeof(char), 4096, f);
 		if (size && contents[size-1] == '\n')
 			contents[size-1] = '\0';
+		fclose(f);
 	}
 	return size;
 }
