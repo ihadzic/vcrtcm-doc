@@ -47,7 +47,6 @@ struct operation {
 	char arghelp[MAX_ARGHELP_LEN];
 	char description[MAX_DESCRIPTION_LEN];
 	int (*func)(int argc, char **argv);
-	
 };
 
 struct operation ops[] = {
@@ -58,7 +57,7 @@ struct operation ops[] = {
 		.description = "Create a new PCON instance of the PIM identified by pim_name.",
 		.func = do_instantiate,
 	},
-	
+
 	{
 		.command = "destroy",
 		.argc = 1,
@@ -66,7 +65,7 @@ struct operation ops[] = {
 		.description = "Destroy the PCON instance identified by pconid.",
 		.func = do_destroy,
 	},
-	
+
 	{
 		.command = "info",
 		.argc = 0,
@@ -97,12 +96,12 @@ void print_usage(char *command)
 int open_pimmgr_device(void)
 {
 	int fd = open(PIMMGR_DEVICE, O_WRONLY);
-	
+
 	if (fd < 0) {
 		fprintf(stderr, "error: cannot open %s: %s\n", PIMMGR_DEVICE, strerror(errno));
 		exit(-1);
 	}
-	
+
 	return fd;
 }
 
@@ -112,15 +111,13 @@ int do_instantiate(int argc, char **argv)
 	int fd = 0;
 	long result = 0;
 	char *type = argv[0];
-	
+
 	fd = open_pimmgr_device();
-	
+
 	strncpy(args.arg1.pim_name, type, PIM_NAME_MAXLEN);
 	args.arg2.hints = 0;
-	
+
 	result = ioctl(fd, PIMMGR_IOC_INSTANTIATE, &args);
-	
-	//printf("IOCTL result %li\n", result);
 
 	if (errno) {
 		switch (errno) {
@@ -139,9 +136,9 @@ int do_instantiate(int argc, char **argv)
 		}
 		return 1;
 	}
-	
-	printf("%i\n", args.result1.pconid);
-	
+
+	printf("%u\n", args.result1.pconid);
+
 	return 0;
 }
 
@@ -150,11 +147,11 @@ int do_destroy(int argc, char **argv)
 	struct pimmgr_ioctl_args args;
 	int fd = 0;
 	long result = 0;
-	
+
 	fd = open_pimmgr_device();
-	
+
 	args.arg1.pconid = (uint32_t) atoll(argv[0]);
-	
+
 	result = ioctl(fd, PIMMGR_IOC_DESTROY, &args);
 	if (errno) {
 		switch (errno) {
@@ -165,8 +162,8 @@ int do_destroy(int argc, char **argv)
 		}
 		return 1;
 	}
-	
-	printf("destroyed pcon with id %i\n", args.arg1.pconid);
+
+	printf("destroyed pcon with id %u\n", args.arg1.pconid);
 	return 0;
 }
 
@@ -175,7 +172,7 @@ int sysfs_read_file(const char *base_path, const char *file, char *contents)
 	int size = 0;
 	char path[512];
 	FILE *f = NULL;
-	
+
 	snprintf(path, 512, "%s/%s", base_path, file);
 	f = fopen(path, "r");
 
@@ -227,7 +224,7 @@ int sysfs_find_pims(const char *fpath, const struct stat *sb, int typeflag, stru
 		if (!found_pcon)
 			printf(" --> no pcons found\n");
 	}
-	
+
 	return FTW_CONTINUE;
 }
 
@@ -258,7 +255,7 @@ int validate_args(struct operation *op, int argc)
 		printf("error: missing arguments\n");
 		exit(0);
 	}
-	
+
 	return 1;
 }
 
@@ -269,14 +266,14 @@ int main(int argc, char **argv)
 	char **new_argv = argv + 2;
 	int i = 0;
 	struct operation *op = NULL;
-	
+
 	if (argc < 2) {
 		print_usage(argv[0]);
 		return 0;
 	}
-	
+
 	operation = argv[1];
-	
+
 	for (i=0; i<operation_count; i++)
 	{
 		if (strncmp(operation, ops[i].command, strlen(operation)) == 0 &&
@@ -284,7 +281,7 @@ int main(int argc, char **argv)
 			return ops[i].func(new_argc, new_argv);
 		}
 	}
-	
+
 	fprintf(stderr, "error: bad command\n");
 	return 0;
 }
