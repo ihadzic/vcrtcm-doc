@@ -122,19 +122,21 @@ int do_instantiate(int argc, char **argv)
 	
 	//printf("IOCTL result %li\n", result);
 
-	if (IOCTL_RESULT_IS_ERR(result)) {
-		if (errno == PIMMGR_ERR_INVALID_PIM)
-			fprintf(stderr, "error: invalid pim identifier \"%s\"\n", type);
-		else if (errno == PIMMGR_ERR_NOT_AVAILABLE)
-			fprintf(stderr, "error: no available pcons of type \"%s\"\n", type);
-		else if (errno == PIMMGR_ERR_CANNOT_REGISTER)
-			fprintf(stderr, "error: unable to register pcon with vcrtcm\n");
-		else if (errno == PIMMGR_ERR_NOMEM)
-			fprintf(stderr, "error: out of memory while instantiating pcon\n");
-		else if (errno == PIMMGR_ERR_NO_FREE_PCONIDS)
-			fprintf(stderr, "error: the system is out of pconids\n");
-		else
-			fprintf(stderr, "non-pimmgr error: %s\n", strerror(errno));
+	if (errno) {
+		switch (errno) {
+			case EINVAL:
+				fprintf(stderr, "error: invalid pim identifier \"%s\"\n", type); break;
+			case ENODEV:
+				fprintf(stderr, "error: no available pcons of type \"%s\"\n", type); break;
+			case EBUSY:
+				fprintf(stderr, "error: unable to register pcon with vcrtcm\n"); break;
+			case ENOMEM:
+				fprintf(stderr, "error: out of memory while instantiating pcon\n"); break;
+			case EMFILE:
+				fprintf(stderr, "error: the system is out of pconids\n"); break;
+			default:
+				fprintf(stderr, "non-pimmgr error: %s\n", strerror(errno));
+		}
 		return 1;
 	}
 	
@@ -154,11 +156,13 @@ int do_destroy(int argc, char **argv)
 	args.arg1.pconid = (uint32_t) atoll(argv[0]);
 	
 	result = ioctl(fd, PIMMGR_IOC_DESTROY, &args);
-	if (IOCTL_RESULT_IS_ERR(result)) {
-		if (result == PIMMGR_ERR_INVALID_PCON)
-			fprintf(stderr, "error: invalid pconid (%i)\n", args.arg1.pconid);
-		else
-			fprintf(stderr, "error: unknown error occured\n");
+	if (errno) {
+		switch (errno) {
+			case EINVAL:
+				fprintf(stderr, "error: invalid pconid (%i)\n", args.arg1.pconid); break;
+			default:
+				fprintf(stderr, "non-pimmgr error: %s\n", strerror(errno));
+		}
 		return 1;
 	}
 	
