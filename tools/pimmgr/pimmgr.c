@@ -30,6 +30,7 @@
 #include <ftw.h>
 #include <errno.h>
 #include <unistd.h>
+#include "pimmgr_ioctl.h"
 
 #define MAX_COMMAND_LEN 35
 #define MAX_ARGHELP_LEN 128

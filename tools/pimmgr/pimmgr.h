@@ -17,33 +17,12 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef PIMMGR_TOOL
-#define PIMMGR_TOOL
+#ifndef __PIMMGR_TOOL__
+#define __PIMMGR_TOOL__
 
-#define PIMMGR_MAGIC 'K'
-#define PIMMGR_IOC_INSTANTIATE _IOW(PIMMGR_MAGIC, 1, int)
-#define PIMMGR_IOC_DESTROY _IOW(PIMMGR_MAGIC, 2, int)
-
-#define PIM_NAME_MAXLEN 33
 #define PIMMGR_DEVICE "/dev/pimmgr"
 #define PIMMGR_SYSFS "/sys/class/vcrtcm/pimmgr"
 #define PIMMGR_SYSFS_PIM_PATH PIMMGR_SYSFS "/pims"
 #define PIMMGR_SYSFS_PCON_PATH PIMMGR_SYSFS "/pcons"
-
-
-#include <stdint.h>
-
-struct pimmgr_ioctl_args {
-	union {
-		char pim_name[PIM_NAME_MAXLEN];
-		int pconid;
-	} arg1;
-	union {
-		uint32_t hints;
-	} arg2;
-	union {
-		int pconid;
-	} result1;
-};
 
 #endif
