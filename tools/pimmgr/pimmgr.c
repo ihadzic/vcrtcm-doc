@@ -121,10 +121,17 @@ int do_instantiate(int argc, char **argv)
 	int fd = 0;
 	long result = 0;
 	char *type = argv[0];
+	int pimid = 0;
 
 	fd = open_pimmgr_device();
 
-	strncpy(args.arg1.pim_name, type, PIM_NAME_MAXLEN);
+	pimid = sysfs_find_pimid(PIMMGR_SYSFS_PIM_PATH, type);
+	if (pimid < 0) {
+		fprintf(stderr, "error: could not find pim type in sysfs\n");
+		return 1;
+	}
+
+	args.arg1.pimid = pimid;
 	args.arg2.hints = 0;
 
 	result = ioctl(fd, PIMMGR_IOC_INSTANTIATE, &args);
@@ -288,6 +295,28 @@ int sysfs_find_pims(const char *pims_path)
 	}
 	closedir(d);
 	return num_pims;
+}
+
+/*
+ * query_sysfs for a pim with name given in pim_name
+ * return the pimid if found, or a negative value if not found
+ */
+int sysfs_find_pimid(const char *pims_path, const char *pim_name)
+{
+	char pim_path[512];
+	static char pimid_str[4096];
+	int pimid;
+	int size;
+
+	snprintf(pim_path, 512, "%s/%s", pims_path, pim_name);
+	
+	size = sysfs_read_file(pim_path, "id", pimid_str);
+	if (size > 0) {
+		pimid = (int)strtol(pimid_str, NULL, 0);
+		return pimid;
+	}
+
+	return -1;
 }
 
 int do_info(int argc, char **argv)
