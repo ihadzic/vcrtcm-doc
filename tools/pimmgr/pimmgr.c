@@ -136,23 +136,9 @@ int do_instantiate(int argc, char **argv)
 
 	result = ioctl(fd, PIMMGR_IOC_INSTANTIATE, &args);
 	close_pimmgr_device(fd);
-	//printf("IOCTL result %li\n", result);
 
 	if (errno) {
-		switch (errno) {
-			case EINVAL:
-				fprintf(stderr, "error: invalid pim identifier \"%s\"\n", type); break;
-			case ENODEV:
-				fprintf(stderr, "error: no available pcons of type \"%s\"\n", type); break;
-			case EBUSY:
-				fprintf(stderr, "error: unable to register pcon with vcrtcm\n"); break;
-			case ENOMEM:
-				fprintf(stderr, "error: out of memory while instantiating pcon\n"); break;
-			case EMFILE:
-				fprintf(stderr, "error: the system is out of pconids\n"); break;
-			default:
-				fprintf(stderr, "non-pimmgr error: %s\n", strerror(errno));
-		}
+		fprintf(stderr, "%s\n", strerror(errno));
 		return 1;
 	}
 
