@@ -548,26 +548,20 @@ them are PIMs). To do that for a DisplayLink device type
 
 $ pimmgr inst udl
 
-The command should respond with:
-
-IOCTL result 0
-Success
-Created pconid 2147483648
-
-The number 2147483648 is the PCON ID that has been created in response
-to your command. You can see its status by typing
+The command should respond with the new PCON ID, which will typically
+be zero if this is the first PCON you have created
 
 $ pimmgr info
 
 You will get something like this:
 
 PIM: udl
- --> PCON: 2147483648
+ --> PCON: 0
        -> DisplayLink Plugable UGA-2K-A - Serial #312126
        -> Not Attached
 
 Now you are ready to use the newly created PCON and attach it
-to a CRTC. Wherever you see the number 2147483648 in examples below
+to a CRTC. Wherever you see the <pcon_id> in examples below
 substitute it with the number that your pimmgr returned.
 
 a) Trivial example
@@ -598,9 +592,9 @@ is should display blue screen.
 
 Now attach it to CRTC-0:
 
-$ radeon_vcrtcm_ctl attach /dev/dri/card0 0 2147483648
+$ radeon_vcrtcm_ctl attach /dev/dri/card0 0 <pcon_id>
 
-In the above example, 2147483648 is the PCON ID (created with pimmgr)
+In the above example, <pcon_id> is the PCON ID (created with pimmgr)
 and 0 is the CRTC number.
 
 Now set the frame rate at 30 frames per second on your DisplayLink
@@ -743,7 +737,7 @@ So we know that the 4 out of these 10 are virtual and others are physical.
 Therefore, the first virtual CRTC is CRTC-6 and the commands to attach
 and stet the frame rate are:
 
-$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 2147483648
+$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 <pcon_id>
 $ radeon_vcrtcm_ctl fps /dev/dri/card0 6 60
 
 Visually this example will look the same, but you should understand
@@ -883,7 +877,7 @@ Now you are ready to try this out. The assumption is that you have not
 started your XDM session yet and that you are looking at a boring framebuffer
 console (e.g. fbcon). To attach and set the frame rate, you should type:
 
-$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 2147483648
+$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 <pcon_id>
 $ radeon_vcrtcm_ctl fps /dev/dri/card0 6 60
 
 The identical text console will appear on the screen associated with
@@ -968,7 +962,7 @@ is defined in "Monitor" sections. The rest should be clear.
 So start your XDM session, attach your PCON and set the frame
 rate.
 
-$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 2147483648
+$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 <pcon_id>
 $ radeon_vcrtcm_ctl fps /dev/dri/card0 6 30
 
 Set the frame rate of the something different from the refresh
@@ -1020,7 +1014,7 @@ to ssh from, unless you are really good at typing blindly.
 Once you get onto your target machine, attach the PCON and set the frame
 rate:
 
-$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 2147483648
+$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 <pcon_id>
 $ radeon_vcrtcm_ctl fps /dev/dri/card0 6 60
 
 If your system starts XDM automatically, you should see the XDM login
@@ -1051,7 +1045,7 @@ Start X without any PCON attached and log in. You can check
 the status of virtual ports with xrandr (they will be disconnected).
 Now load a PCON driver and attach it:
 
-$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 2147483648
+$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 <pcon_id>
 $ radeon_vcrtcm_ctl fps /dev/dri/card0 6 30
 
 This will cause a hotplug event in your system and RANDR will resize
@@ -1089,7 +1083,7 @@ desktop in it ... on your primary desktop. What will happen?
 Give it a try:
 
 $ sudo modprobe v4l2pim
-$ radeon_vcrtcm_ctl attach /dev/dri/card0 0 2147483648
+$ radeon_vcrtcm_ctl attach /dev/dri/card0 0 <pcon_id>
 $ radeon_vcrtcm_ctl fps /dev/dri/card0 0 30
 $ vlc v4l2:///dev/video0
 
