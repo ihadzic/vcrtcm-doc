@@ -30,7 +30,7 @@
 #include <ftw.h>
 #include <errno.h>
 #include <unistd.h>
-#include "pimmgr_ioctl.h"
+#include "vcrtcm_ioctl.h"
 
 #define MAX_COMMAND_LEN 35
 #define MAX_ARGHELP_LEN 128
@@ -117,7 +117,7 @@ void close_pimmgr_device(int fd)
 
 int do_instantiate(int argc, char **argv)
 {
-	struct pimmgr_ioctl_args args;
+	struct vcrtcm_ioctl_args args;
 	int fd = 0;
 	long result = 0;
 	char *type = argv[0];
@@ -149,7 +149,7 @@ int do_instantiate(int argc, char **argv)
 
 int do_destroy(int argc, char **argv)
 {
-	struct pimmgr_ioctl_args args;
+	struct vcrtcm_ioctl_args args;
 	int fd = 0;
 	long result = 0;
 
