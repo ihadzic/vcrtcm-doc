@@ -5,16 +5,16 @@ CFLAGS=
 KERNEL_DIR = $(shell echo /lib/modules/`uname -r`/source/drivers/gpu/drm/vcrtcm)
 HDR = vcrtcm_ioctl.h
 
-all: pimmgr
+all: vcrtcm
 
-pimmgr: pimmgr.c $(HDR)
-	$(CC) $(CFLAGS) pimmgr.c -o pimmgr
+vcrtcm: vcrtcm.c $(HDR)
+	$(CC) $(CFLAGS) vcrtcm.c -o vcrtcm
 
 $(HDR): $(KERNEL_DIR)/$(HDR)
 	ln -s $(KERNEL_DIR)/$(HDR)
 
 install:
-	sudo install pimmgr /usr/local/bin
+	sudo install vcrtcm /usr/local/bin
 
 clean:
-	rm -f *.o pimmgr $(HDR) magic.txt
+	rm -f *.o pimmgr vcrtcm $(HDR) magic.txt

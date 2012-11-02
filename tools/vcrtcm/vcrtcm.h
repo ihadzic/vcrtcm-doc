@@ -17,12 +17,12 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __PIMMGR_TOOL__
-#define __PIMMGR_TOOL__
+#ifndef __VCRTCM_TOOL__
+#define __VCRTCM_TOOL__
 
-#define PIMMGR_DEVICE "/dev/pimmgr"
-#define PIMMGR_SYSFS "/sys/class/vcrtcm/pimmgr"
-#define PIMMGR_SYSFS_PIM_PATH PIMMGR_SYSFS "/pims"
-#define PIMMGR_SYSFS_PCON_PATH PIMMGR_SYSFS "/pcons"
+#define VCRTCM_DEVICE "/dev/pimmgr"
+#define VCRTCM_SYSFS "/sys/class/vcrtcm/pimmgr"
+#define VCRTCM_SYSFS_PIM_PATH VCRTCM_SYSFS "/pims"
+#define VCRTCM_SYSFS_PCON_PATH VCRTCM_SYSFS "/pcons"
 
 #endif

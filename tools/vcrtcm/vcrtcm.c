@@ -26,10 +26,10 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdint.h>
-#include "pimmgr.h"
 #include <ftw.h>
 #include <errno.h>
 #include <unistd.h>
+#include "vcrtcm.h"
 #include "vcrtcm_ioctl.h"
 
 #define MAX_COMMAND_LEN 35
@@ -94,23 +94,23 @@ void print_usage(char *command)
 	printf("type \"%s help\" for more help\n", command);
 }
 
-int open_pimmgr_device(void)
+int open_vcrtcm_device(void)
 {
-	int fd = open(PIMMGR_DEVICE, O_WRONLY);
+	int fd = open(VCRTCM_DEVICE, O_WRONLY);
 
 	if (fd < 0) {
-		fprintf(stderr, "error: cannot open %s: %s\n", PIMMGR_DEVICE, strerror(errno));
+		fprintf(stderr, "error: cannot open %s: %s\n", VCRTCM_DEVICE, strerror(errno));
 		exit(-1);
 	}
 
 	return fd;
 }
 
-void close_pimmgr_device(int fd)
+void close_vcrtcm_device(int fd)
 {
 	if (close(fd) == -1) {
 		fprintf(stderr, "error: cannot close %s: %s\n",
-			PIMMGR_DEVICE, strerror(errno));
+			VCRTCM_DEVICE, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 }
@@ -123,9 +123,9 @@ int do_instantiate(int argc, char **argv)
 	char *type = argv[0];
 	int pimid = 0;
 
-	fd = open_pimmgr_device();
+	fd = open_vcrtcm_device();
 
-	pimid = sysfs_find_pimid(PIMMGR_SYSFS_PIM_PATH, type);
+	pimid = sysfs_find_pimid(VCRTCM_SYSFS_PIM_PATH, type);
 	if (pimid < 0) {
 		fprintf(stderr, "error: could not find pim type in sysfs\n");
 		return 1;
@@ -134,8 +134,8 @@ int do_instantiate(int argc, char **argv)
 	args.arg1.pimid = pimid;
 	args.arg2.hints = 0;
 
-	result = ioctl(fd, PIMMGR_IOC_INSTANTIATE, &args);
-	close_pimmgr_device(fd);
+	result = ioctl(fd, VCRTCM_IOC_INSTANTIATE, &args);
+	close_vcrtcm_device(fd);
 
 	if (errno) {
 		fprintf(stderr, "%s\n", strerror(errno));
@@ -153,19 +153,19 @@ int do_destroy(int argc, char **argv)
 	int fd = 0;
 	long result = 0;
 
-	fd = open_pimmgr_device();
+	fd = open_vcrtcm_device();
 
 	args.arg1.pconid = (uint32_t) atoll(argv[0]);
 
-	result = ioctl(fd, PIMMGR_IOC_DESTROY, &args);
-	close_pimmgr_device(fd);
+	result = ioctl(fd, VCRTCM_IOC_DESTROY, &args);
+	close_vcrtcm_device(fd);
 
 	if (errno) {
 		switch (errno) {
 			case EINVAL:
 				fprintf(stderr, "error: invalid pconid (%i)\n", args.arg1.pconid); break;
 			default:
-				fprintf(stderr, "non-pimmgr error: %s\n", strerror(errno));
+				fprintf(stderr, "non-vcrtcm error: %s\n", strerror(errno));
 		}
 		return 1;
 	}
@@ -295,7 +295,7 @@ int sysfs_find_pimid(const char *pims_path, const char *pim_name)
 	int size;
 
 	snprintf(pim_path, 512, "%s/%s", pims_path, pim_name);
-	
+
 	size = sysfs_read_file(pim_path, "id", pimid_str);
 	if (size > 0) {
 		pimid = (int)strtol(pimid_str, NULL, 0);
@@ -309,7 +309,7 @@ int do_info(int argc, char **argv)
 {
 	int num_pims;
 
-	num_pims = sysfs_find_pims(PIMMGR_SYSFS_PIM_PATH);
+	num_pims = sysfs_find_pims(VCRTCM_SYSFS_PIM_PATH);
 	if (num_pims < 0)
 		return num_pims;
 	if (num_pims == 0)
@@ -366,4 +366,3 @@ int main(int argc, char **argv)
 	fprintf(stderr, "error: bad command\n");
 	return 0;
 }
-
