@@ -1,7 +1,8 @@
 default: all
+-include *.d
 
-CC=gcc
-CFLAGS=
+CC = gcc
+CFLAGS = -MD
 KERNEL_DIR = $(shell echo /lib/modules/`uname -r`/source/drivers/gpu/drm/vcrtcm)
 HDR = vcrtcm_ioctl.h
 
