@@ -37,6 +37,7 @@
 #define MAX_DESCRIPTION_LEN 1024
 
 /* Operation implementations */
+int do_pimtest(int argc, char **argv);
 int do_instantiate(int argc, char **argv);
 int do_destroy(int argc, char **argv);
 int do_info(int argc, char **argv);
@@ -57,6 +58,14 @@ struct operation ops[] = {
 		.arghelp = "<pim_name>",
 		.description = "Create a new PCON instance of the PIM identified by pim_name.",
 		.func = do_instantiate,
+	},
+
+	{
+		.command = "pimtest",
+		.argc = 2,
+		.arghelp = "<pim_name> <arg>",
+		.description = "Call the PIM's test() callback function with the given argument.",
+		.func = do_pimtest,
 	},
 
 	{
@@ -113,6 +122,37 @@ void close_vcrtcm_device(int fd)
 			VCRTCM_DEVICE, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
+}
+
+int do_pimtest(int argc, char **argv)
+{
+	struct vcrtcm_ioctl_args args;
+	int fd = 0;
+	long result = 0;
+	char *type = argv[0];
+	int pimid = 0;
+
+	fd = open_vcrtcm_device();
+
+	pimid = sysfs_find_pimid(VCRTCM_SYSFS_PIM_PATH, type);
+	if (pimid < 0) {
+		fprintf(stderr, "error: could not find pim type in sysfs\n");
+		return 1;
+	}
+
+	args.arg1.pimid = pimid;
+	args.arg2.testarg = (uint32_t) atoll(argv[1]);
+
+	result = ioctl(fd, VCRTCM_IOC_PIMTEST, &args);
+	close_vcrtcm_device(fd);
+
+	if (errno) {
+		fprintf(stderr, "%s\n", strerror(errno));
+		return 1;
+	}
+
+	printf("result = %ld\n", result);
+	return 0;
 }
 
 int do_instantiate(int argc, char **argv)
