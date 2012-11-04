@@ -3,7 +3,7 @@ default: all
 
 CC = gcc
 CFLAGS = -MD
-KERNEL_DIR = $(shell echo /lib/modules/`uname -r`/source/drivers/gpu/drm/vcrtcm)
+KERNEL_DIR = $(shell echo /lib/modules/`uname -r`/source/include/drm/vcrtcm)
 HDR = vcrtcm_ioctl.h
 
 all: vcrtcm
