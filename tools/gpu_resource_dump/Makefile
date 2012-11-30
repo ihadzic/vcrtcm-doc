@@ -12,7 +12,7 @@ $(TARGET): $(OBJS)
 	$(CC) -o $(TARGET) $(OBJS) -ldrm
 
 install:
-	cp -v $(TARGET) /usr/local/bin
+	sudo cp -v $(TARGET) /usr/local/bin
 
 depend.make: $(SRC)
 	$(CC) -c -MM $(INCLUDES) $(SRC) > depend.make

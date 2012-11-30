@@ -6,5 +6,5 @@ all:
 install:
 	@echo "Installing udev rules to $(UDEV_RULES_PATH)..."
 	sudo rm -f $(UDEV_RULES_PATH)/*pimmgr.rules
-	cp -v *.rules $(UDEV_RULES_PATH)
+	sudo cp -v *.rules $(UDEV_RULES_PATH)
 

@@ -26,7 +26,7 @@ $(TARGET2): $(OBJS2)
 	$(CC) -o $(TARGET2) $(OBJS2)
 
 install:
-	cp -v $(TARGET1) /usr/local/bin
+	sudo cp -v $(TARGET1) /usr/local/bin
 
 depend.make: magic.txt $(SRC)
 	$(CC) -c -MM $(INCLUDES) $(SRC) > depend.make
