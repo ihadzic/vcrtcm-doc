@@ -77,9 +77,9 @@ The picture roughly looks like this:
 +-----+      +-----+      +--------+      +------+
 | DRM |<-+-->| GPU |<-+-->| VCRTCM |<-+-->| PCON |
 +-----+  |   +-----+  |   +--------+  |   +------+
-         |            |   | PIMMGR |  |
-         |   +-----+  |   +--------+  |   +------+
-         +-->| GPU |<-+       ^       +-->| PCON |
+         |            |       ^       |
+         |   +-----+  |       |       |   +------+
+         +-->| GPU |<-+       |       +-->| PCON |
              +-----+          |           +------+
                               V
                           +--------+
@@ -123,7 +123,7 @@ purposes can be viewed as a device drivers for a particular class
 of PCONs. How many PCONs can one PIM support depends on the number
 of available resources for that device.
 
-The VCRTCM module (and the associated PIMMGR helper module)
+The VCRTCM module
 keep track of the PCONs in the system. The usr can ask a particular
 PIM to instantiate a PCON and if the resources are available a handle
 will be returned to the user space. That handle is then used to identify
@@ -254,7 +254,6 @@ Device drivers--->Graphics support)
 
   <M> Direct Rendering Manager
        <M> Bell Labs Virtual CRTC Manager (VCRTCM)
-       <M> Bell Labs PIM Manager (pimmgr)
               VCRTCM PCON-implementation modules (PIMs)
                    <M> DisplayLink USB Graphics Adapter PIM
                    <M> Video for Linux PIM
@@ -270,12 +269,11 @@ CONFIG_DRM_KMS_HELPER=m
 CONFIG_DRM_RADEON=m
 CONFIG_DRM_RADEON_KMS=y
 CONFIG_DRM_VCRTCM=m
-CONFIG_DRM_PIMMGR=m
 CONFIG_DRM_VCRTCM_PIM_UDL=m
 CONFIG_DRM_VCRTCM_PIM_V4L2=m
 
 At present only the 'm' (compile as kernel-loadable module) option has
-been tested for VCRTCM, PIMMGR, UDLPIM, and V4L2PIM, so you should
+been tested for VCRTCM, UDLPIM, and V4L2PIM, so you should
 compile all the necessary components as modules. If you decide to
 experiment with 'y' option, please report the findings.
 
@@ -333,14 +331,14 @@ boot up the kernel, you can type 'modinfo radeon' to see what parameters
 the module understands (you should see the new parameters
 that are not available in the module that normally comes with
 your Linux distribution). Likewise, you can run 'modinfo' command on
-vcrtcm, pimmgr, udlpim, and v4l2pim. This is also a good way
+vcrtcm, udlpim, and v4l2pim. This is also a good way
 to make sure that the modules you need are there and available
 for use.
 
 Also you can use 'lsmod' to check whether any of the modules has
 automatically loaded. If you have a DisplayLink device plugged into
 your USB port and if you are running UDEV, the system should
-automatically load the UDLPIM module. The VCRTCM and PIMMGR
+automatically load the UDLPIM module. The VCRTCM
 modules should also load automatically because the GPU driver
 (radeon) now depends on them. You can check what loaded using the
 'lsmod' command. You should see udlpim driver loaded and the
@@ -367,7 +365,7 @@ also need some control applications. These applications are used to
 manage PCONs and also attach and detach PCONs to the CRTCs of your
 GPU driver.
 
-pimmgr application instantiates and destroys PCONs and also shows
+vcrtcm application instantiates and destroys PCONs and also shows
 which PCONs are available for which PIM and their state.
 
 radeon_vcrtcm_ctl application talks to the GPU driver using a newly
@@ -382,15 +380,15 @@ To compile, you must be running the new kernel because the
 build process will look for some .h files in the running kernel.
 To compile type:
 
-cd tools/pimmgr
+cd tools/vcrtcm
 make
 sudo make install
 cd ../radeon_vcrtcm_ctl
 make
 sudo make install
 
-You will get two executables called pimmgr and radeon_vcrtcm_ctl.
-You can type 'radeon_vcrtcm_ctl ?' or 'pimmgr help' for a short
+You will get two executables called vcrtcm and radeon_vcrtcm_ctl.
+You can type 'radeon_vcrtcm_ctl ?' or 'vcrtcm help' for a short
 help pages.
 
 We should also note that at this time, the security settings of
@@ -398,7 +396,7 @@ the new ioctl() are rather loose, so anyone with the ability to open
 /dev/drm/cardN device can control virtual CRTCs via radeon_vcrtcm_ctl
 device. Given that the code is experimental, we don't mind trading
 security for convenience. We will later tighten this up.
-To run pimmgr as a regular user you must install some new UDEV rules.
+To run vcrtcm as a regular user you must install some new UDEV rules.
 Go to tools/udev_rules directory and type 'sudo make install' there.
 
 You will also notice that the two programs are quite trivial,
@@ -419,7 +417,7 @@ a few bugs that we found in Xorg and ATI DDX (xf86-video-ati library).
 Minimum requirements are:
 
 - Kernel with our patches (described above)
-- pimmgr application (described above)
+- vcrtcm application (described above)
 - radeon_vcrtcm_ctl application (described above)
 - libdrm >=2.4.25 
 - xf86-video-ati >=6.14.2 
@@ -546,12 +544,12 @@ For all examples, you need to first create a PCON (recall that
 PCONs are created on demand, while the modules that implement
 them are PIMs). To do that for a DisplayLink device type
 
-$ pimmgr inst udl
+$ vcrtcm inst udl
 
 The command should respond with the new PCON ID, which will typically
 be zero if this is the first PCON you have created
 
-$ pimmgr info
+$ vcrtcm info
 
 You will get something like this:
 
@@ -562,7 +560,7 @@ PIM: udl
 
 Now you are ready to use the newly created PCON and attach it
 to a CRTC. Wherever you see the <pcon_id> in examples below
-substitute it with the number that your pimmgr returned.
+substitute it with the number that your vcrtcm returned.
 
 a) Trivial example
 ------------------
@@ -594,7 +592,7 @@ Now attach it to CRTC-0:
 
 $ radeon_vcrtcm_ctl attach /dev/dri/card0 0 <pcon_id>
 
-In the above example, <pcon_id> is the PCON ID (created with pimmgr)
+In the above example, <pcon_id> is the PCON ID (created with vcrtcm)
 and 0 is the CRTC number.
 
 Now set the frame rate at 30 frames per second on your DisplayLink
@@ -661,7 +659,7 @@ For fun sake, you can repeat the above exercise with the V4L2PIM.
 Instantiate a new PCON:
 
 $ sudo modprobe v4l2pim
-$ pimmgr inst v4l2
+$ vcrtcm inst v4l2
 
 You will get something like this:
 
