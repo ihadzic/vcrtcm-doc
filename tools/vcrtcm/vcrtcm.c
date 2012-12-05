@@ -42,6 +42,10 @@ int do_instantiate(int argc, char **argv);
 int do_destroy(int argc, char **argv);
 int do_info(int argc, char **argv);
 int do_help(int argc, char **argv);
+int do_attach(int argc, char **argv);
+int do_detach(int argc, char **argv);
+int do_fps(int argc, char **argv);
+int do_xmit(int argc, char **argv);
 
 struct operation {
 	char command[MAX_COMMAND_LEN];
@@ -56,10 +60,9 @@ struct operation ops[] = {
 		.command = "instantiate",
 		.argc = 1,
 		.arghelp = "<pim_name>",
-		.description = "Create a new PCON instance of the PIM identified by pim_name.",
+		.description = "Create a new PCON of the given type.",
 		.func = do_instantiate,
 	},
-
 	{
 		.command = "pimtest",
 		.argc = 2,
@@ -67,30 +70,55 @@ struct operation ops[] = {
 		.description = "Call the PIM's test() callback function with the given argument.",
 		.func = do_pimtest,
 	},
-
 	{
 		.command = "destroy",
 		.argc = 1,
 		.arghelp = "<pconid>",
-		.description = "Destroy the PCON instance identified by pconid.",
+		.description = "Destroy the given PCON.",
 		.func = do_destroy,
 	},
-
 	{
 		.command = "info",
 		.argc = 0,
 		.arghelp = "",
-		.description = "List all available PIMs and their associated PCON instances.",
+		.description = "List all available PIMs and their associated PCONs.",
 		.func = do_info,
 	},
-
 	{
 		.command = "help",
 		.argc = 0,
 		.arghelp = "",
 		.description = "Display this message.",
 		.func = do_help,
-	}
+	},
+	{
+		.command = "attach",
+		.argc = 2,
+		.arghelp = "<pconid> <connid>",
+		.description = "Attach the given PCON to the connector with the given DRM identifer.",
+		.func = do_attach,
+	},
+	{
+		.command = "detach",
+		.argc = 1,
+		.arghelp = "<pconid>",
+		.description = "Detach the given PCON from its connector.",
+		.func = do_detach,
+	},
+	{
+		.command = "fps",
+		.argc = 2,
+		.arghelp = "<pconid> <fps>",
+		.description = "Set the given PCON's frame rate to the specified value.",
+		.func = do_fps,
+	},
+	{
+		.command = "xmit",
+		.argc = 1,
+		.arghelp = "<pconid>",
+		.description = "Tell the given PCON to transmit one frame.",
+		.func = do_xmit,
+	},
 };
 
 static int operation_count = sizeof(ops) / sizeof(struct operation);
@@ -405,4 +433,28 @@ int main(int argc, char **argv)
 
 	fprintf(stderr, "error: bad command\n");
 	return 0;
+}
+
+int do_attach(int argc, char **argv)
+{
+	printf("attach TBD\n");
+	return -1;
+}
+
+int do_detach(int argc, char **argv)
+{
+	printf("detach TBD\n");
+	return -1;
+}
+
+int do_fps(int argc, char **argv)
+{
+	printf("fps TBD\n");
+	return -1;
+}
+
+int do_xmit(int argc, char **argv)
+{
+	printf("xmit TBD\n");
+	return -1;
 }
