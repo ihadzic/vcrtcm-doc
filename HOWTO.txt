@@ -483,20 +483,28 @@ you will run over this limit and corrupt the data.
 b) Xorg patch
 -------------
 
-This patch will affect you if you are using Zaphod mode (multiple
-independent desktops), but we recommend that you apply it anyway.
-It does not hurt non-Zaphod configurations and you will have a system
-that is consistent with ours so we can support you better if need be.
 The patch files are
 
 patches/<xorg_version>/0001-xfree86-workaround-for-Zaphod-mode-problem-with-VCRT.patch
 patches/<xorg_version>/0002-xfree86-add-some-handy-debug-messages.patch
+patches/<xorg_version>/0001-xf86-crtc-HACK-do-not-touch-DPMS-in-xf86DisableUnuse.patch
 
 Where <xorg_version> is the version of X server you are using.
+
+The first patch will affect you if you are using Zaphod mode (multiple
+independent desktops), but we recommend that you apply it anyway.
+It does not hurt non-Zaphod configurations and you will have a system
+that is consistent with ours so we can support you better if need be.
 
 The bug is rather complicated and if you are interested you should read
 the commit message associated with 
 0001-xfree86-workaround-for-Zaphod-mode-problem-with-VCRT.patch
+
+The second patch adds some log messages for convenience, while the
+third patch is a hacky workaround for another bug that is provoked
+or caused by Gnome 3 (see patch log message for description).
+It is not related to the use of virtual CRTCs, but
+we found it along the way, so we include it here.
 
 After applying patches, you should rebuild and re-test your system
 before proceeding.
