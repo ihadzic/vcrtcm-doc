@@ -1,0 +1,44 @@
+From 6c6a4d7d888f5a391ed3820eeb6627f5971e04b6 Mon Sep 17 00:00:00 2001
+From: Ilija Hadzic <ihadzic@research.bell-labs.com>
+Date: Tue, 11 Dec 2012 10:38:13 -0500
+Subject: [PATCH] xf86/crtc: HACK: do not touch DPMS in xf86DisableUnusedFunctions
+
+This patch is a hack to work around other bugs until we
+have a better fix. Namely, when the mode changes, Gnome 3 provokes
+XRandR into calling xf86DisableUnusedFunctions which goes through
+all CRTCs and disabling them all. Then it later makes XRandR do
+another loop, but this time it disables all CRTCs *except* the
+one that the desktop will use. However, it never does explicit
+enable (and XRandR won't do it on its own).
+
+That combined with another not-so-correct code in ATI DDX, makes
+the desktop still visible, but without honoring vblanks.
+
+This patch works round the issue, by removing the sending the
+DMPS-off signal to CRTC in xf86DisableUnusedFunctions. Most DDXes
+will ignore DPMS signal sent on CRTC anyway (intel, nouveau,
+vmware, vesa, modsettings), so removal of DPMS call won't harm them.
+However, some DDXes (ati) will (due to some other bug workarounds)
+will stop honoring vblanks in response to CRTC DPMS "off" message,
+so removal of DPMS call will fix the problem.
+
+Signed-off-by: Ilija Hadzic <ihadzic@research.bell-labs.com>
+---
+ hw/xfree86/modes/xf86Crtc.c |    1 -
+ 1 files changed, 0 insertions(+), 1 deletions(-)
+
+diff --git a/hw/xfree86/modes/xf86Crtc.c b/hw/xfree86/modes/xf86Crtc.c
+index 6e39b72..89d0b9e 100644
+--- a/hw/xfree86/modes/xf86Crtc.c
++++ b/hw/xfree86/modes/xf86Crtc.c
+@@ -2885,7 +2885,6 @@ xf86DisableUnusedFunctions(ScrnInfoPtr pScrn)
+         xf86CrtcPtr crtc = xf86_config->crtc[c];
+ 
+         if (!crtc->enabled) {
+-            crtc->funcs->dpms(crtc, DPMSModeOff);
+             memset(&crtc->mode, 0, sizeof(crtc->mode));
+             xf86RotateDestroy(crtc);
+             crtc->active = FALSE;
+-- 
+1.7.4.1
+
