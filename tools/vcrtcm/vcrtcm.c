@@ -29,6 +29,7 @@
 #include <ftw.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include "vcrtcm.h"
 #include "vcrtcm_ioctl.h"
 
@@ -93,9 +94,9 @@ struct operation ops[] = {
 	},
 	{
 		.command = "attach",
-		.argc = 2,
-		.arghelp = "<pconid> <connid>",
-		.description = "Attach the given PCON to the connector with the given DRM identifer.",
+		.argc = 3,
+		.arghelp = "<pconid> <connid> <devpath>",
+		.description = "Attach the given PCON to the connector in the given DRM devpath with the given DRM identifer.",
 		.func = do_attach,
 	},
 	{
@@ -133,13 +134,13 @@ void print_usage(char *command)
 
 int open_vcrtcm_device(void)
 {
-	int fd = open(VCRTCM_DEVICE, O_WRONLY);
+	int fd;
 
+	fd = open(VCRTCM_DEVICE, O_WRONLY);
 	if (fd < 0) {
 		fprintf(stderr, "error: cannot open %s: %s\n", VCRTCM_DEVICE, strerror(errno));
 		exit(-1);
 	}
-
 	return fd;
 }
 
@@ -155,30 +156,25 @@ void close_vcrtcm_device(int fd)
 int do_pimtest(int argc, char **argv)
 {
 	struct vcrtcm_ioctl_args args;
-	int fd = 0;
-	long result = 0;
+	int fd;
+	long result;
 	char *type = argv[0];
-	int pimid = 0;
+	int pimid;
 
 	fd = open_vcrtcm_device();
-
 	pimid = sysfs_find_pimid(VCRTCM_SYSFS_PIM_PATH, type);
 	if (pimid < 0) {
 		fprintf(stderr, "error: could not find pim type in sysfs\n");
 		return 1;
 	}
-
 	args.arg1.pimid = pimid;
-	args.arg2.testarg = (uint32_t) atoll(argv[1]);
-
+	args.arg2.testarg = strtoul(argv[1], NULL, 0);
 	result = ioctl(fd, VCRTCM_IOC_PIMTEST, &args);
 	close_vcrtcm_device(fd);
-
 	if (errno) {
 		fprintf(stderr, "%s\n", strerror(errno));
 		return 1;
 	}
-
 	printf("result = %ld\n", result);
 	return 0;
 }
@@ -186,59 +182,52 @@ int do_pimtest(int argc, char **argv)
 int do_instantiate(int argc, char **argv)
 {
 	struct vcrtcm_ioctl_args args;
-	int fd = 0;
-	long result = 0;
+	int fd;
+	long result;
 	char *type = argv[0];
-	int pimid = 0;
+	int pimid;
 
 	fd = open_vcrtcm_device();
-
 	pimid = sysfs_find_pimid(VCRTCM_SYSFS_PIM_PATH, type);
 	if (pimid < 0) {
 		fprintf(stderr, "error: could not find pim type in sysfs\n");
 		return 1;
 	}
-
 	args.arg1.pimid = pimid;
 	args.arg2.hints = 0;
-
 	result = ioctl(fd, VCRTCM_IOC_INSTANTIATE, &args);
 	close_vcrtcm_device(fd);
-
 	if (errno) {
 		fprintf(stderr, "%s\n", strerror(errno));
 		return 1;
 	}
-
-	printf("%u\n", args.result1.pconid);
-
+	printf("%d\n", args.result1.pconid);
 	return 0;
 }
 
 int do_destroy(int argc, char **argv)
 {
 	struct vcrtcm_ioctl_args args;
-	int fd = 0;
-	long result = 0;
+	int fd;
+	long result;
 
 	fd = open_vcrtcm_device();
-
-	args.arg1.pconid = (uint32_t) atoll(argv[0]);
-
+	args.arg1.pconid = strtoul(argv[0], NULL, 0);
 	result = ioctl(fd, VCRTCM_IOC_DESTROY, &args);
 	close_vcrtcm_device(fd);
-
 	if (errno) {
 		switch (errno) {
 			case EINVAL:
-				fprintf(stderr, "error: invalid pconid (%i)\n", args.arg1.pconid); break;
+			case ENODEV:
+				fprintf(stderr, "error: invalid pconid (%d)\n", args.arg1.pconid); break;
+				break;
 			default:
 				fprintf(stderr, "non-vcrtcm error: %s\n", strerror(errno));
+				break;
 		}
 		return 1;
 	}
-
-	printf("destroyed pcon with id %u\n", args.arg1.pconid);
+	printf("destroyed pcon %d\n", args.arg1.pconid);
 	return 0;
 }
 
@@ -250,7 +239,6 @@ int sysfs_read_file(const char *base_path, const char *file, char *contents)
 
 	snprintf(path, 512, "%s/%s", base_path, file);
 	f = fopen(path, "r");
-
 	if (f) {
 		size = fread(contents, sizeof(char), 4096, f);
 		if (size && contents[size-1] == '\n')
@@ -394,17 +382,15 @@ int do_help(int argc, char **argv)
 		printf("\t%s %s\n", ops[i].command, ops[i].arghelp);
 		printf("\t\t- %s\n", ops[i].description);
 	}
-
 	return 0;
 }
 
 int validate_args(struct operation *op, int argc)
 {
-	if (!(op->argc <= argc)) {
+	if (op->argc > argc) {
 		printf("error: missing arguments\n");
 		exit(0);
 	}
-
 	return 1;
 }
 
@@ -413,48 +399,133 @@ int main(int argc, char **argv)
 	char *operation;
 	int new_argc = argc - 2;
 	char **new_argv = argv + 2;
-	int i = 0;
+	int i;
 	struct operation *op = NULL;
 
 	if (argc < 2) {
 		print_usage(argv[0]);
 		return 0;
 	}
-
 	operation = argv[1];
-
-	for (i=0; i<operation_count; i++)
-	{
+	for (i=0; i<operation_count; i++) {
 		if (strncmp(operation, ops[i].command, strlen(operation)) == 0 &&
 		    validate_args(&ops[i], new_argc)) {
 			return ops[i].func(new_argc, new_argv);
 		}
 	}
-
 	fprintf(stderr, "error: bad command\n");
 	return 0;
 }
 
 int do_attach(int argc, char **argv)
 {
-	printf("attach TBD\n");
-	return -1;
+	struct vcrtcm_ioctl_args args;
+	int fd;
+	long result;
+	struct stat st;
+
+	fd = open_vcrtcm_device();
+	args.arg1.pconid = strtoul(argv[0], NULL, 0);
+	args.arg2.connid = strtoul(argv[1], NULL, 0);
+	if (stat(argv[2], &st)) {
+		fprintf(stderr, "cannot stat %s: %s\n", argv[2], strerror(errno));
+		return 1;
+	}
+	args.arg3.major = major(st.st_rdev);
+	args.arg4.minor = minor(st.st_rdev);
+	result = ioctl(fd, VCRTCM_IOC_ATTACH, &args);
+	close_vcrtcm_device(fd);
+	if (errno) {
+		switch (errno) {
+			case EINVAL:
+			case ENODEV:
+				fprintf(stderr, "error: invalid pconid (%d) or connid (%d)\n", args.arg1.pconid, args.arg2.connid); break;
+				break;
+			default:
+				fprintf(stderr, "non-vcrtcm error: %s\n", strerror(errno));
+				break;
+		}
+		return 1;
+	}
+	printf("attached pcon %d to connector %d\n", args.arg1.pconid, args.arg2.connid);
+	return 0;
 }
 
 int do_detach(int argc, char **argv)
 {
-	printf("detach TBD\n");
-	return -1;
+	struct vcrtcm_ioctl_args args;
+	int fd;
+	long result;
+
+	fd = open_vcrtcm_device();
+	args.arg1.pconid = strtoul(argv[0], NULL, 0);
+	result = ioctl(fd, VCRTCM_IOC_DETACH, &args);
+	close_vcrtcm_device(fd);
+	if (errno) {
+		switch (errno) {
+			case EINVAL:
+			case ENODEV:
+				fprintf(stderr, "error: invalid pconid (%d)\n", args.arg1.pconid); break;
+				break;
+			default:
+				fprintf(stderr, "non-vcrtcm error: %s\n", strerror(errno));
+				break;
+		}
+		return 1;
+	}
+	printf("detached pcon %d\n", args.arg1.pconid);
+	return 0;
 }
 
 int do_fps(int argc, char **argv)
 {
-	printf("fps TBD\n");
-	return -1;
+	struct vcrtcm_ioctl_args args;
+	int fd;
+	long result;
+
+	fd = open_vcrtcm_device();
+	args.arg1.pconid = strtoul(argv[0], NULL, 0);
+	args.arg2.fps = strtoul(argv[1], NULL, 0);
+	result = ioctl(fd, VCRTCM_IOC_FPS, &args);
+	close_vcrtcm_device(fd);
+	if (errno) {
+		switch (errno) {
+			case EINVAL:
+			case ENODEV:
+				fprintf(stderr, "error: invalid pconid (%d)\n", args.arg1.pconid); break;
+				break;
+			default:
+				fprintf(stderr, "non-vcrtcm error: %s\n", strerror(errno));
+				break;
+		}
+		return 1;
+	}
+	printf("set pcon %d to %d f/s\n", args.arg1.pconid, args.arg2.fps);
+	return 0;
 }
 
 int do_xmit(int argc, char **argv)
 {
-	printf("xmit TBD\n");
-	return -1;
+	struct vcrtcm_ioctl_args args;
+	int fd;
+	long result;
+
+	fd = open_vcrtcm_device();
+	args.arg1.pconid = strtoul(argv[0], NULL, 0);
+	result = ioctl(fd, VCRTCM_IOC_XMIT, &args);
+	close_vcrtcm_device(fd);
+	if (errno) {
+		switch (errno) {
+			case EINVAL:
+			case ENODEV:
+				fprintf(stderr, "error: invalid pconid (%d)\n", args.arg1.pconid); break;
+				break;
+			default:
+				fprintf(stderr, "non-vcrtcm error: %s\n", strerror(errno));
+				break;
+		}
+		return 1;
+	}
+	printf("forced pcon %d to xmit\n", args.arg1.pconid);
+	return 0;
 }
