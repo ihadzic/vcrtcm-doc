@@ -170,11 +170,11 @@ int do_pimtest(int argc, char **argv)
 	args.arg1.pimid = pimid;
 	args.arg2.testarg = strtoul(argv[1], NULL, 0);
 	result = ioctl(fd, VCRTCM_IOC_PIMTEST, &args);
-	close_vcrtcm_device(fd);
 	if (errno) {
 		fprintf(stderr, "%s\n", strerror(errno));
 		return 1;
 	}
+	close_vcrtcm_device(fd);
 	printf("result = %ld\n", result);
 	return 0;
 }
@@ -196,11 +196,11 @@ int do_instantiate(int argc, char **argv)
 	args.arg1.pimid = pimid;
 	args.arg2.hints = 0;
 	result = ioctl(fd, VCRTCM_IOC_INSTANTIATE, &args);
-	close_vcrtcm_device(fd);
 	if (errno) {
 		fprintf(stderr, "%s\n", strerror(errno));
 		return 1;
 	}
+	close_vcrtcm_device(fd);
 	printf("%d\n", args.result1.pconid);
 	return 0;
 }
@@ -214,7 +214,6 @@ int do_destroy(int argc, char **argv)
 	fd = open_vcrtcm_device();
 	args.arg1.pconid = strtoul(argv[0], NULL, 0);
 	result = ioctl(fd, VCRTCM_IOC_DESTROY, &args);
-	close_vcrtcm_device(fd);
 	if (errno) {
 		switch (errno) {
 			case EINVAL:
@@ -227,6 +226,7 @@ int do_destroy(int argc, char **argv)
 		}
 		return 1;
 	}
+	close_vcrtcm_device(fd);
 	printf("destroyed pcon %d\n", args.arg1.pconid);
 	return 0;
 }
@@ -434,7 +434,6 @@ int do_attach(int argc, char **argv)
 	args.arg3.major = major(st.st_rdev);
 	args.arg4.minor = minor(st.st_rdev);
 	result = ioctl(fd, VCRTCM_IOC_ATTACH, &args);
-	close_vcrtcm_device(fd);
 	if (errno) {
 		switch (errno) {
 			case EINVAL:
@@ -447,6 +446,7 @@ int do_attach(int argc, char **argv)
 		}
 		return 1;
 	}
+	close_vcrtcm_device(fd);
 	printf("attached pcon %d to connector %d\n", args.arg1.pconid, args.arg2.connid);
 	return 0;
 }
@@ -460,7 +460,6 @@ int do_detach(int argc, char **argv)
 	fd = open_vcrtcm_device();
 	args.arg1.pconid = strtoul(argv[0], NULL, 0);
 	result = ioctl(fd, VCRTCM_IOC_DETACH, &args);
-	close_vcrtcm_device(fd);
 	if (errno) {
 		switch (errno) {
 			case EINVAL:
@@ -473,6 +472,7 @@ int do_detach(int argc, char **argv)
 		}
 		return 1;
 	}
+	close_vcrtcm_device(fd);
 	printf("detached pcon %d\n", args.arg1.pconid);
 	return 0;
 }
@@ -487,7 +487,6 @@ int do_fps(int argc, char **argv)
 	args.arg1.pconid = strtoul(argv[0], NULL, 0);
 	args.arg2.fps = strtoul(argv[1], NULL, 0);
 	result = ioctl(fd, VCRTCM_IOC_FPS, &args);
-	close_vcrtcm_device(fd);
 	if (errno) {
 		switch (errno) {
 			case EINVAL:
@@ -500,6 +499,7 @@ int do_fps(int argc, char **argv)
 		}
 		return 1;
 	}
+	close_vcrtcm_device(fd);
 	printf("set pcon %d to %d f/s\n", args.arg1.pconid, args.arg2.fps);
 	return 0;
 }
@@ -513,7 +513,6 @@ int do_xmit(int argc, char **argv)
 	fd = open_vcrtcm_device();
 	args.arg1.pconid = strtoul(argv[0], NULL, 0);
 	result = ioctl(fd, VCRTCM_IOC_XMIT, &args);
-	close_vcrtcm_device(fd);
 	if (errno) {
 		switch (errno) {
 			case EINVAL:
@@ -526,6 +525,7 @@ int do_xmit(int argc, char **argv)
 		}
 		return 1;
 	}
+	close_vcrtcm_device(fd);
 	printf("forced pcon %d to xmit\n", args.arg1.pconid);
 	return 0;
 }
