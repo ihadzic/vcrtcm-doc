@@ -248,19 +248,77 @@ int sysfs_read_file(const char *base_path, const char *file, char *contents)
 	return size;
 }
 
+static void
+parse_connlink(char *path, int *conn_minor, int *connid)
+{
+	char *colon;
+	char *slash;
+
+	*conn_minor = -1;
+	*connid = -1;
+	colon = strrchr(path, ':');
+	if (!colon)
+		return;
+	*connid = atoi(colon + 1);
+	*colon = '\0';
+	slash = strrchr(path, '/');
+	if (!slash)
+		return;
+	*conn_minor = atoi(slash + 1);
+}
+
+static void
+show_pcon(char *pcon_path, struct dirent *de)
+{
+	static char contents[4096];
+	int result;
+	int attached;
+
+	printf("    PCON: %s\n", de->d_name);
+	sysfs_read_file(pcon_path, "description", contents);
+	printf("        %s\n", contents);
+	result = sysfs_read_file(pcon_path, "attached", contents);
+	if (!result) {
+		printf("        properties not implemented\n");
+		return;
+	}
+	attached = atoi(contents);
+	if (attached) {
+		int fps;
+		char connlink_src_path[PATH_MAX];
+		char connlink_dest_path[PATH_MAX];
+
+		sysfs_read_file(pcon_path, "fps", contents);
+		fps = atoi(contents);
+		snprintf(connlink_src_path, sizeof(connlink_src_path),
+			"%s/connector", pcon_path);
+		if (readlink(connlink_src_path, connlink_dest_path, PATH_MAX) > 0) {
+			int attach_minor;
+			int conn_minor;
+			int connid;
+
+			connlink_dest_path[PATH_MAX-1] = '\0';
+			parse_connlink(connlink_dest_path, &conn_minor, &connid);
+			sysfs_read_file(pcon_path, "attach_minor", contents);
+			attach_minor = atoi(contents);
+			printf("        attached to connector %d of drm minor %d (attached via minor %d), f/s = %d\n", connid, conn_minor, attach_minor, fps);
+		}
+		else
+			printf("        attached, f/s = %d\n", fps);
+	} else
+		printf("        unattached\n");
+}
+
 /*
  * return the number of pcons found or a negative value on error
  */
 int sysfs_find_pcons(const char *pim_path)
 {
-	static char contents[4096];
 	char pcon_path[PATH_MAX];
 	struct stat pcon_stat;
 	struct dirent *de;
 	DIR *d;
-	int attached;
 	int num_pcons;
-	int result;
 
 	num_pcons = 0;
 	d = opendir(pim_path);
@@ -270,35 +328,19 @@ int sysfs_find_pcons(const char *pim_path)
 		return -1;
 	}
 	while ((de = readdir(d)) != NULL) {
-		if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
-			continue;
-		snprintf(pcon_path, sizeof(pcon_path), "%s/%s",
-			 pim_path, de->d_name);
-
-		/* if the entry is not a directory then continue */
-		if (stat(pcon_path, &pcon_stat) == -1) {
-			fprintf(stderr, "error: cannot stat %s: %s\n",
-				pcon_path, strerror(errno));
-			continue;
+		if (strcmp(de->d_name, ".") && strcmp(de->d_name, "..")) {
+			snprintf(pcon_path, sizeof(pcon_path), "%s/%s",
+				 pim_path, de->d_name);
+			if (stat(pcon_path, &pcon_stat) == -1) {
+				fprintf(stderr, "error: cannot stat %s: %s\n",
+					pcon_path, strerror(errno));
+				continue;
+			}
+			if (S_ISDIR(pcon_stat.st_mode)) {
+				num_pcons++;
+				show_pcon(pcon_path, de);
+			}
 		}
-		if (!S_ISDIR(pcon_stat.st_mode))
-			continue;
-
-		num_pcons++;
-		printf(" --> PCON: %s\n", de->d_name);
-		sysfs_read_file(pcon_path, "description", contents);
-		printf("       -> %s\n", contents);
-		result = sysfs_read_file(pcon_path, "attached", contents);
-		if (!result) {
-			printf("       -> properties not implemented\n");
-			continue;
-		}
-		attached = atoi(contents);
-		if (attached) {
-			sysfs_read_file(pcon_path, "fps", contents);
-			printf("       -> attached, FPS = %s\n", contents);
-		} else
-			printf("       -> unattached\n");
 	}
 	closedir(d);
 	return num_pcons;
@@ -333,7 +375,7 @@ int sysfs_find_pims(const char *pims_path)
 			closedir(d);
 			return num_pcons;
 		} else if (num_pcons == 0)
-			printf(" --> no pcons found\n");
+			printf("    no pcons\n");
 	}
 	closedir(d);
 	return num_pims;
