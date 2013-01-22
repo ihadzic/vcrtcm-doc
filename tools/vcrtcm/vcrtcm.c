@@ -177,6 +177,7 @@ int do_pimtest(int argc, char **argv)
 		fprintf(stderr, "error: could not find pim type in sysfs\n");
 		return 1;
 	}
+	memset(&args, 0, sizeof(args));
 	args.arg1.pimid = pimid;
 	args.arg2.testarg = strtoul(argv[1], NULL, 0);
 	result = ioctl(fd, VCRTCM_IOC_PIMTEST, &args);
@@ -211,6 +212,7 @@ int do_instantiate(int argc, char **argv)
 		fprintf(stderr, "error: could not find pim type in sysfs\n");
 		return 1;
 	}
+	memset(&args, 0, sizeof(args));
 	args.arg1.pimid = pimid;
 	args.arg2.xfer_mode = xfer_mode;
 	args.arg3.hints = hints;
@@ -231,6 +233,7 @@ int do_destroy(int argc, char **argv)
 	long result;
 
 	fd = open_vcrtcm_device();
+	memset(&args, 0, sizeof(args));
 	args.arg1.pconid = strtoul(argv[0], NULL, 0);
 	result = ioctl(fd, VCRTCM_IOC_DESTROY, &args);
 	if (errno) {
@@ -490,6 +493,7 @@ int do_attach(int argc, char **argv)
 	struct stat st;
 
 	fd = open_vcrtcm_device();
+	memset(&args, 0, sizeof(args));
 	args.arg1.pconid = strtoul(argv[0], NULL, 0);
 	args.arg2.connid = strtoul(argv[1], NULL, 0);
 	if (stat(argv[2], &st)) {
@@ -523,6 +527,7 @@ int do_detach(int argc, char **argv)
 	long result;
 
 	fd = open_vcrtcm_device();
+	memset(&args, 0, sizeof(args));
 	args.arg1.pconid = strtoul(argv[0], NULL, 0);
 	result = ioctl(fd, VCRTCM_IOC_DETACH, &args);
 	if (errno) {
@@ -549,6 +554,7 @@ int do_fps(int argc, char **argv)
 	long result;
 
 	fd = open_vcrtcm_device();
+	memset(&args, 0, sizeof(args));
 	args.arg1.pconid = strtoul(argv[0], NULL, 0);
 	args.arg2.fps = strtoul(argv[1], NULL, 0);
 	result = ioctl(fd, VCRTCM_IOC_FPS, &args);
@@ -576,6 +582,7 @@ int do_xmit(int argc, char **argv)
 	long result;
 
 	fd = open_vcrtcm_device();
+	memset(&args, 0, sizeof(args));
 	args.arg1.pconid = strtoul(argv[0], NULL, 0);
 	result = ioctl(fd, VCRTCM_IOC_XMIT, &args);
 	if (errno) {
