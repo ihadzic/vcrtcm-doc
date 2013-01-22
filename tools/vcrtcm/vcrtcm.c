@@ -50,7 +50,8 @@ int do_xmit(int argc, char **argv);
 
 struct operation {
 	char command[MAX_COMMAND_LEN];
-	int argc;
+	int min_argc;
+	int max_argc;
 	char arghelp[MAX_ARGHELP_LEN];
 	char description[MAX_DESCRIPTION_LEN];
 	int (*func)(int argc, char **argv);
@@ -59,63 +60,72 @@ struct operation {
 struct operation ops[] = {
 	{
 		.command = "instantiate",
-		.argc = 1,
-		.arghelp = "<pim_name>",
+		.min_argc = 1,
+		.max_argc = 3,
+		.arghelp = "<pim_name> [<xfer_mode> [<hints>]]",
 		.description = "Create a new PCON of the given type.",
 		.func = do_instantiate,
 	},
 	{
 		.command = "pimtest",
-		.argc = 2,
+		.min_argc = 2,
+		.max_argc = 2,
 		.arghelp = "<pim_name> <arg>",
 		.description = "Call the PIM's test() callback function with the given argument.",
 		.func = do_pimtest,
 	},
 	{
 		.command = "destroy",
-		.argc = 1,
+		.min_argc = 1,
+		.max_argc = 1,
 		.arghelp = "<pconid>",
 		.description = "Destroy the given PCON.",
 		.func = do_destroy,
 	},
 	{
 		.command = "info",
-		.argc = 0,
+		.min_argc = 0,
+		.max_argc = 0,
 		.arghelp = "",
 		.description = "List all available PIMs and their associated PCONs.",
 		.func = do_info,
 	},
 	{
 		.command = "help",
-		.argc = 0,
+		.min_argc = 0,
+		.max_argc = 0,
 		.arghelp = "",
 		.description = "Display this message.",
 		.func = do_help,
 	},
 	{
 		.command = "attach",
-		.argc = 3,
+		.min_argc = 3,
+		.max_argc = 3,
 		.arghelp = "<pconid> <connid> <devpath>",
 		.description = "Attach the given PCON to the connector in the given DRM devpath with the given DRM identifer.",
 		.func = do_attach,
 	},
 	{
 		.command = "detach",
-		.argc = 1,
+		.min_argc = 1,
+		.max_argc = 1,
 		.arghelp = "<pconid>",
 		.description = "Detach the given PCON from its connector.",
 		.func = do_detach,
 	},
 	{
 		.command = "fps",
-		.argc = 2,
+		.min_argc = 2,
+		.max_argc = 2,
 		.arghelp = "<pconid> <fps>",
 		.description = "Set the given PCON's frame rate to the specified value.",
 		.func = do_fps,
 	},
 	{
 		.command = "xmit",
-		.argc = 1,
+		.min_argc = 1,
+		.max_argc = 1,
 		.arghelp = "<pconid>",
 		.description = "Tell the given PCON to transmit one frame.",
 		.func = do_xmit,
@@ -182,11 +192,19 @@ int do_pimtest(int argc, char **argv)
 int do_instantiate(int argc, char **argv)
 {
 	struct vcrtcm_ioctl_args args;
+	int xfer_mode;
+	int hints;
 	int fd;
 	long result;
 	char *type = argv[0];
 	int pimid;
 
+	xfer_mode = 0; // that's VCRTCM_XFERMODE_UNSPECIFIED
+	if (argc > 1)
+		xfer_mode = atoi(argv[1]);
+	hints = 0;
+	if (argc > 2)
+		hints = atoi(argv[2]);
 	fd = open_vcrtcm_device();
 	pimid = sysfs_find_pimid(VCRTCM_SYSFS_PIM_PATH, type);
 	if (pimid < 0) {
@@ -194,7 +212,8 @@ int do_instantiate(int argc, char **argv)
 		return 1;
 	}
 	args.arg1.pimid = pimid;
-	args.arg2.hints = 0;
+	args.arg2.xfer_mode = xfer_mode;
+	args.arg3.hints = hints;
 	result = ioctl(fd, VCRTCM_IOC_INSTANTIATE, &args);
 	if (errno) {
 		fprintf(stderr, "%s\n", strerror(errno));
@@ -429,8 +448,12 @@ int do_help(int argc, char **argv)
 
 int validate_args(struct operation *op, int argc)
 {
-	if (op->argc > argc) {
+	if (argc < op->min_argc) {
 		printf("error: missing arguments\n");
+		exit(0);
+	}
+	if (argc > op->max_argc) {
+		printf("error: too many arguments\n");
 		exit(0);
 	}
 	return 1;
