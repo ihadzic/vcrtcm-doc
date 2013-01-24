@@ -334,25 +334,19 @@ show_pcon(char *pcon_path, struct dirent *de)
 /*
  * return the number of pcons found or a negative value on error
  */
-int sysfs_find_pcons(const char *pim_path)
+int sysfs_find_pcons_in(const char *dirpath, DIR *dir)
 {
-	char pcon_path[PATH_MAX];
-	struct stat pcon_stat;
 	struct dirent *de;
-	DIR *d;
 	int num_pcons;
+	char pcon_path[PATH_MAX];
 
 	num_pcons = 0;
-	d = opendir(pim_path);
-	if (!d) {
-		fprintf(stderr, "error: cannot open %s: %s\n",
-			pim_path, strerror(errno));
-		return -1;
-	}
-	while ((de = readdir(d)) != NULL) {
+	while ((de = readdir(dir)) != NULL) {
 		if (strcmp(de->d_name, ".") && strcmp(de->d_name, "..")) {
+			struct stat pcon_stat;
+
 			snprintf(pcon_path, sizeof(pcon_path), "%s/%s",
-				 pim_path, de->d_name);
+				 dirpath, de->d_name);
 			if (stat(pcon_path, &pcon_stat) == -1) {
 				fprintf(stderr, "error: cannot stat %s: %s\n",
 					pcon_path, strerror(errno));
@@ -364,7 +358,34 @@ int sysfs_find_pcons(const char *pim_path)
 			}
 		}
 	}
-	closedir(d);
+	return num_pcons;
+}
+
+/*
+ * return the number of pcons found or a negative value on error
+ */
+int sysfs_find_pcons(const char *pim_path)
+{
+	char pcons_path[PATH_MAX];
+	const char *dirpath;
+	DIR *dir;
+	int num_pcons;
+
+	snprintf(pcons_path, PATH_MAX, "%s/%s", pim_path, "pcons");
+	dirpath = pcons_path;
+	dir = opendir(dirpath);
+	if (!dir) {
+		/* it's the older sysfs layout */
+		dirpath = pim_path;
+		dir = opendir(dirpath);
+		if (!dir) {
+			fprintf(stderr, "error: cannot open %s: %s\n",
+				pim_path, strerror(errno));
+			return -1;
+		}
+	}
+	num_pcons = sysfs_find_pcons_in(dirpath, dir);
+	closedir(dir);
 	return num_pcons;
 }
 
