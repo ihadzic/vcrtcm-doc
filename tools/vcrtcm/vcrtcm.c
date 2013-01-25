@@ -77,8 +77,8 @@ struct operation ops[] = {
 	{
 		.command = "destroy",
 		.min_argc = 1,
-		.max_argc = 1,
-		.arghelp = "<pconid>",
+		.max_argc = 2,
+		.arghelp = "<pconid> [<force>]",
 		.description = "Destroy the given PCON.",
 		.func = do_destroy,
 	},
@@ -109,8 +109,8 @@ struct operation ops[] = {
 	{
 		.command = "detach",
 		.min_argc = 1,
-		.max_argc = 1,
-		.arghelp = "<pconid>",
+		.max_argc = 2,
+		.arghelp = "<pconid> [<force>]",
 		.description = "Detach the given PCON from its connector.",
 		.func = do_detach,
 	},
@@ -229,12 +229,17 @@ int do_instantiate(int argc, char **argv)
 int do_destroy(int argc, char **argv)
 {
 	struct vcrtcm_ioctl_args args;
+	int force;
 	int fd;
 	long result;
 
+	force = 0;
+	if (argc > 1)
+		force = atoi(argv[1]);
 	fd = open_vcrtcm_device();
 	memset(&args, 0, sizeof(args));
 	args.arg1.pconid = strtoul(argv[0], NULL, 0);
+	args.arg2.force = force;
 	result = ioctl(fd, VCRTCM_IOC_DESTROY, &args);
 	if (errno) {
 		switch (errno) {
@@ -544,12 +549,17 @@ int do_attach(int argc, char **argv)
 int do_detach(int argc, char **argv)
 {
 	struct vcrtcm_ioctl_args args;
+	int force;
 	int fd;
 	long result;
 
+	force = 0;
+	if (argc > 1)
+		force = atoi(argv[1]);
 	fd = open_vcrtcm_device();
 	memset(&args, 0, sizeof(args));
 	args.arg1.pconid = strtoul(argv[0], NULL, 0);
+	args.arg2.force = force;
 	result = ioctl(fd, VCRTCM_IOC_DETACH, &args);
 	if (errno) {
 		switch (errno) {
