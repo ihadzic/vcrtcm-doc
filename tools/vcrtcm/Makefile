@@ -2,7 +2,7 @@ default: all
 -include *.d
 
 CC = gcc
-CFLAGS = -MD
+CFLAGS = -MD -Wall
 KERNEL_DIR = $(shell echo /lib/modules/`uname -r`/source/include/drm/vcrtcm)
 HDR = vcrtcm_ioctl.h
 
@@ -18,4 +18,4 @@ install:
 	sudo install vcrtcm /usr/local/bin
 
 clean:
-	rm -f *.o pimmgr vcrtcm $(HDR) magic.txt
+	rm -f *.o pimmgr vcrtcm $(HDR) magic.txt *.d
