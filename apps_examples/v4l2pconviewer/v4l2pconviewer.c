@@ -37,6 +37,8 @@
 
 #include <linux/videodev2.h>
 
+#define MEASURE_TIME_SEC 5
+
 static int v4l2fd = -1;
 static char *v4l2str = "/dev/video0";
 static unsigned int v4l2width = 640;
@@ -101,13 +103,26 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 
 	for (;;) {
-		nread = read_frame();
-		if (nread > 0) {
-			XPutImage(d, w, gc, img, 0, 0, 0, 0,
-					v4l2width, v4l2height);
-		}
-		if (XPending(d) > 0)
-			XNextEvent(d, &e);
+		struct timeval start_time, end_time, current_time, measure_time;
+		int frame_counter;
+		
+		gettimeofday(&start_time, NULL);
+		measure_time.tv_sec = MEASURE_TIME_SEC;
+		measure_time.tv_usec = 0;
+		timeradd(&start_time, &measure_time, &end_time);
+		frame_counter = 0;
+		do {
+			nread = read_frame();
+			if (nread > 0) {
+				frame_counter++;
+				XPutImage(d, w, gc, img, 0, 0, 0, 0,
+					  v4l2width, v4l2height);
+			}
+			if (XPending(d) > 0)
+				XNextEvent(d, &e);
+			gettimeofday(&current_time, NULL);
+		} while timercmp(&current_time, &end_time, <);
+		printf("measured FPS %d\n", frame_counter / MEASURE_TIME_SEC);
 	}
 
 	free_mem();
