@@ -37,8 +37,6 @@
 
 #include <linux/videodev2.h>
 
-#define TIMEOUT_USEC 100
-
 static int v4l2fd = -1;
 static char *v4l2str = "/dev/video0";
 static unsigned int v4l2width = 640;
@@ -110,7 +108,6 @@ int main(int argc, char **argv)
 		}
 		if (XPending(d) > 0)
 			XNextEvent(d, &e);
-		usleep(TIMEOUT_USEC);
 	}
 
 	free_mem();
@@ -178,20 +175,7 @@ static int alloc_mem()
 
 static int read_frame()
 {
-	ssize_t nread;
-	struct timeval t;
-	fd_set fds;
-	int res;
-
-	FD_ZERO(&fds);
-	FD_SET(v4l2fd, &fds);
-	t.tv_sec = 0;
-	t.tv_usec = TIMEOUT_USEC;
-
-	res = select(v4l2fd + 1, &fds, NULL, NULL, &t);
-	if (res <= 0)
-		return res;
-	return nread = read(v4l2fd, v4l2buf, v4l2bufsize);
+	return read(v4l2fd, v4l2buf, v4l2bufsize);
 }
 
 static int close_v4l2()
