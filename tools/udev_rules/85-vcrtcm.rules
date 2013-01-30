@@ -1,1 +1,1 @@
-ACTION=="add", SUBSYSTEM=="vcrtcm", DEVPATH=="/devices/virtual/vcrtcm/pimmgr", MODE="0220", OWNER="root", GROUP="wheel"
+ACTION=="add", SUBSYSTEM=="vcrtcm", DEVPATH=="/devices/virtual/vcrtcm/vcrtcm", MODE="0220", OWNER="root", GROUP="wheel"
