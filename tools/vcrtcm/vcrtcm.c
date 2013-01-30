@@ -32,10 +32,10 @@
 #include <sys/stat.h>
 #include "vcrtcm_ioctl.h"
 
-#define VCRTCM_DEVICE "/dev/pimmgr"
-#define VCRTCM_SYSFS "/sys/class/vcrtcm/pimmgr"
-#define VCRTCM_SYSFS_PIM_PATH VCRTCM_SYSFS "/pims"
-#define VCRTCM_SYSFS_PCON_PATH VCRTCM_SYSFS "/pcons"
+#define VCRTCM_DEVICE_OLD "/dev/pimmgr"
+#define VCRTCM_DEVICE "/dev/vcrtcm"
+#define VCRTCM_SYSFS_OLD "/sys/class/vcrtcm/pimmgr"
+#define VCRTCM_SYSFS "/sys/class/vcrtcm/vcrtcm"
 
 #define MAX_COMMAND_LEN 35
 #define MAX_ARGHELP_LEN 128
@@ -138,6 +138,8 @@ struct operation ops[] = {
 
 static int operation_count = sizeof(ops) / sizeof(struct operation);
 
+static const char *sysfs;
+
 void print_usage(char *command)
 {
 	printf("usage: %s <command> [args]\n", command);
@@ -150,19 +152,14 @@ int open_vcrtcm_device(void)
 
 	fd = open(VCRTCM_DEVICE, O_WRONLY);
 	if (fd < 0) {
-		fprintf(stderr, "error: cannot open %s: %s\n", VCRTCM_DEVICE, strerror(errno));
-		exit(EXIT_FAILURE);
+		fprintf(stderr, "warning: cannot open %s (%s), trying %s\n", VCRTCM_DEVICE, strerror(errno), VCRTCM_DEVICE_OLD);
+		fd = open(VCRTCM_DEVICE_OLD, O_WRONLY);
+		if (fd < 0) {
+			fprintf(stderr, "error: cannot open %s: %s\n", VCRTCM_DEVICE_OLD, strerror(errno));
+			exit(EXIT_FAILURE);
+		}
 	}
 	return fd;
-}
-
-void close_vcrtcm_device(int fd)
-{
-	if (close(fd) == -1) {
-		fprintf(stderr, "error: cannot close %s: %s\n",
-			VCRTCM_DEVICE, strerror(errno));
-		exit(EXIT_FAILURE);
-	}
 }
 
 int sysfs_read_file(const char *base_path, const char *file, char *contents)
@@ -193,7 +190,7 @@ int sysfs_find_pimid(const char *pim_name)
 	int pimid;
 	int size;
 
-	snprintf(pim_path, PATH_MAX, "%s/%s", VCRTCM_SYSFS_PIM_PATH, pim_name);
+	snprintf(pim_path, PATH_MAX, "%s/pims/%s", sysfs, pim_name);
 	size = sysfs_read_file(pim_path, "id", pimid_str);
 	if (size > 0) {
 		pimid = (int)strtol(pimid_str, NULL, 0);
@@ -211,7 +208,7 @@ int sysfs_find_pconid(uint32_t pconid)
 	char path[PATH_MAX];
 	struct stat st;
 
-	snprintf(path, PATH_MAX, "%s/%u", VCRTCM_SYSFS_PCON_PATH, pconid);
+	snprintf(path, PATH_MAX, "%s/pcons/%u", sysfs, pconid);
 	if (stat(path, &st) < 0) {
 		fprintf(stderr, "error: cannot stat %s: %s\n",
 					path, strerror(errno));
@@ -246,7 +243,7 @@ int do_pimtest(int argc, char **argv)
 		fprintf(stderr, "error: ioctl failed: %s\n", strerror(errno));
 		return EXIT_FAILURE;
 	}
-	close_vcrtcm_device(fd);
+	close(fd);
 	return 0;
 }
 
@@ -281,7 +278,7 @@ int do_instantiate(int argc, char **argv)
 		fprintf(stderr, "error: ioctl failed: %s\n", strerror(errno));
 		return EXIT_FAILURE;
 	}
-	close_vcrtcm_device(fd);
+	close(fd);
 	printf("%d\n", args.result1.pconid);
 	return 0;
 }
@@ -311,7 +308,7 @@ int do_destroy(int argc, char **argv)
 		fprintf(stderr, "error: ioctl failed: %s\n", strerror(errno));
 		return EXIT_FAILURE;
 	}
-	close_vcrtcm_device(fd);
+	close(fd);
 	printf("destroyed pcon %d\n", args.arg1.pconid);
 	return 0;
 }
@@ -438,27 +435,29 @@ int sysfs_find_pcons(const char *pim_path)
 /*
  * return the number of pims found or a negative value on error
  */
-int sysfs_find_pims(const char *pims_path)
+int sysfs_find_pims()
 {
+	char dir_path[PATH_MAX];
 	char pim_path[PATH_MAX];
 	struct dirent *de;
 	DIR *d;
 	int num_pims, num_pcons;
 
-	num_pims = 0;
-	d = opendir(pims_path);
+	snprintf(dir_path, sizeof(dir_path), "%s/pims", sysfs);
+	d = opendir(dir_path);
 	if (!d) {
 		fprintf(stderr, "error: cannot open %s: %s\n",
-			pims_path, strerror(errno));
+			dir_path, strerror(errno));
 		return -1;
 	}
+	num_pims = 0;
 	while ((de = readdir(d)) != NULL) {
 		if (!strcmp(de->d_name, ".") ||!strcmp(de->d_name, ".."))
 			continue;
 		num_pims++;
 		printf("PIM: %s\n", de->d_name);
 		snprintf(pim_path, sizeof(pim_path), "%s/%s",
-			 pims_path, de->d_name);
+			 dir_path, de->d_name);
 		num_pcons = sysfs_find_pcons(pim_path);
 		if (num_pcons < 0) {
 			closedir(d);
@@ -474,7 +473,7 @@ int do_info(int argc, char **argv)
 {
 	int num_pims;
 
-	num_pims = sysfs_find_pims(VCRTCM_SYSFS_PIM_PATH);
+	num_pims = sysfs_find_pims();
 	if (num_pims < 0)
 		return num_pims;
 	if (num_pims == 0)
@@ -512,10 +511,20 @@ int main(int argc, char **argv)
 	int new_argc = argc - 2;
 	char **new_argv = argv + 2;
 	int i;
+	struct stat st;
 
 	if (argc < 2) {
 		print_usage(argv[0]);
 		return EXIT_FAILURE;
+	}
+	sysfs = VCRTCM_SYSFS;
+	if (stat(sysfs, &st) < 0) {
+		fprintf(stderr, "warning: cannot stat %s (%s), trying %s\n", sysfs, strerror(errno), VCRTCM_SYSFS_OLD);
+		sysfs = VCRTCM_SYSFS_OLD;
+		if (stat(sysfs, &st) < 0) {
+			fprintf(stderr, "error: cannot stat %s: %s\n", sysfs, strerror(errno));
+			return EXIT_FAILURE;
+		}
 	}
 	operation = argv[1];
 	for (i=0; i<operation_count; i++) {
@@ -556,7 +565,7 @@ int do_attach(int argc, char **argv)
 		fprintf(stderr, "error: ioctl failed: %s\n", strerror(errno));
 		return EXIT_FAILURE;
 	}
-	close_vcrtcm_device(fd);
+	close(fd);
 	printf("attached pcon %d to connector %d\n", args.arg1.pconid, args.arg2.connid);
 	return 0;
 }
@@ -586,7 +595,7 @@ int do_detach(int argc, char **argv)
 		fprintf(stderr, "error: ioctl failed: %s\n", strerror(errno));
 		return EXIT_FAILURE;
 	}
-	close_vcrtcm_device(fd);
+	close(fd);
 	printf("detached pcon %d\n", args.arg1.pconid);
 	return 0;
 }
@@ -612,7 +621,7 @@ int do_fps(int argc, char **argv)
 		fprintf(stderr, "error: ioctl failed: %s\n", strerror(errno));
 		return EXIT_FAILURE;
 	}
-	close_vcrtcm_device(fd);
+	close(fd);
 	printf("set pcon %d to %d f/s\n", args.arg1.pconid, args.arg2.fps);
 	return 0;
 }
@@ -637,7 +646,7 @@ int do_xmit(int argc, char **argv)
 		fprintf(stderr, "error: ioctl failed: %s\n", strerror(errno));
 		return EXIT_FAILURE;
 	}
-	close_vcrtcm_device(fd);
+	close(fd);
 	printf("forced pcon %d to xmit\n", args.arg1.pconid);
 	return 0;
 }
