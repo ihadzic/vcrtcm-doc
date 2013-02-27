@@ -16,6 +16,8 @@ $(HDR): $(KERNEL_DIR)/$(HDR)
 
 install:
 	sudo install vcrtcm /usr/local/bin
+	sudo rm -f /usr/local/bin/pimmgr
+	sudo rm -f /usr/local/bin/radeon_vcrtcm_ctl
 
 clean:
 	rm -f *.o pimmgr vcrtcm $(HDR) magic.txt *.d
