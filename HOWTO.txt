@@ -38,7 +38,7 @@ External devices attached to virtual CRTCs are referred here as
 them as "PCON implementation modules" (PIMs). 
 A PCON can do whatever it likes with the pixels that it receives
 from the virtual CRTC.  For example, a PCON can compress the pixels,
-transmit them over some link, or display them locally.  (The UDLPIM
+transmit them over some link, or display them locally.  (The udlpim
 module described later is an example of a PIM that does all three of
 these things). PCONs can be implemented entirely in software, or as
 a combination of software and hardware. In the latter case, the
@@ -124,7 +124,7 @@ of PCONs. How many PCONs can one PIM support depends on the number
 of available resources for that device.
 
 The VCRTCM module
-keep track of the PCONs in the system. The usr can ask a particular
+keep track of the PCONs in the system. The user can ask a particular
 PIM to instantiate a PCON and if the resources are available a handle
 will be returned to the user space. That handle is then used to identify
 PCON being attached to a CRTC. When PCON is no longer needed, it can
@@ -138,25 +138,25 @@ PCONs do. We have currently released two PIMs. In this section
 we briefly described what you can do with them and and make your
 Linux box do some geeky things.
 
-UDLPIM is a PIM that is also a device driver for a DisplayLink device 
+Udlpim is a PIM that is also a device driver for a DisplayLink device 
 (see http://www.displaylink.com/ for more information) and that allows 
 you to use a Radeon GPU for 3D rendering and display the rendered pixels
 on a monitor attached to a DisplayLink device. When you attach
-a PCON implemented by UDLPIM to a virtual CRTC, you will have a new
+a PCON implemented by udlpim to a virtual CRTC, you will have a new
 screen that will be an "equal citizen" with your local DVI, HDMI,
 VGA, whatever connectors that your GPU provides. Currently,
 DisplayLink support in Linux is limited to unaccelerated graphics
 using xf86-video-fbdev DDX. Using VCRTCM allows you to use your GPU
 for acceleration (and use the GPU-specific DDX), and your DL device for
-adding more heads to your monitor. UDLPIM reuses some of the code from
+adding more heads to your monitor. udlpim reuses some of the code from
 drivers/video/udlfb.c, but in general it is a new driver that
 allows to use the DL hardware in a new way. The number of PCONs that
 this PIM can create depends on the number of DisplayLink devices that
 you have in your system. Once PCONs for all DL devices in the system
-are created, the resources are exausted and new PCONs cannot be
+are created, the resources are exhausted and new PCONs cannot be
 created (unless a new DL device is plugged in).
 
-V4L2PIM is a software-only PIM that exposes the GPU frame buffer 
+V4l2pim is a software-only PIM that exposes the GPU frame buffer 
 to user space as a Video-for-Linux device (/dev/videoN). 
 You can use it to do many interesting things. For example, you
 can open VLC and capture the frames rendered by your GPU into a
@@ -273,7 +273,7 @@ CONFIG_DRM_VCRTCM_PIM_UDL=m
 CONFIG_DRM_VCRTCM_PIM_V4L2=m
 
 At present only the 'm' (compile as kernel-loadable module) option has
-been tested for VCRTCM, UDLPIM, and V4L2PIM, so you should
+been tested for VCRTCM, udlpim, and v4l2pim, so you should
 compile all the necessary components as modules. If you decide to
 experiment with 'y' option, please report the findings.
 
@@ -338,7 +338,7 @@ for use.
 Also you can use 'lsmod' to check whether any of the modules has
 automatically loaded. If you have a DisplayLink device plugged into
 your USB port and if you are running UDEV, the system should
-automatically load the UDLPIM module. The VCRTCM
+automatically load the udlpim module. The VCRTCM
 modules should also load automatically because the GPU driver
 (radeon) now depends on them. You can check what loaded using the
 'lsmod' command. You should see udlpim driver loaded and the
@@ -356,57 +356,97 @@ device connected to your USB port, you can manually insert it using
 'modprobe udlpim'. You can also insert the v4l2pim module using 
 'modprobe v4l2pim'.
 
-
 7. Compiling the Control Application
-===================================================
+====================================
 
 In addition to the new kernel (and modules described above) you will
-also need some control applications. These applications are used to 
-manage PCONs and also attach and detach PCONs to the CRTCs of your
-GPU driver.
+also need a control application, also called "vcrtcm". This tool is 
+used to instantiate and destroy PCONs, attach and detach them to and 
+from CRTCs, set the frame rate of the attached CRTC, and show their
+current state.  
 
-vcrtcm application instantiates and destroys PCONs and also shows
-which PCONs are available for which PIM and their state.
+The vcrtcm tool is available in the tools/ directory of the same 
+repository in which you found this document.  To compile it, you 
+must be running the new kernel because the build process looks for 
+some .h files in the running kernel.  To compile it, type:
 
-radeon_vcrtcm_ctl application talks to the GPU driver using a newly
-introduced ioctl() and controls which PCON is attached to which CRTC. 
-It also controls the frame rate (and thus the VBlank rate) associated
-with each virtual CRTC.
+$ cd tools/vcrtcm
+$ make
+$ sudo make install
 
-They are both available in tools/ directory of the same repository
-in which you found this document.
+You can type 'vcrtcm help' for a short help page.
 
-To compile, you must be running the new kernel because the
-build process will look for some .h files in the running kernel.
-To compile type:
+The vcrtcm tool interacts with the VCRTCM kernel module via a new
+set of ioctls that VCRTCM provides.  For now the security settings 
+of the VCRTCM ioctls are rather loose: Anyone with the ability to open
+the /dev/pimmgr device can control the system's PCONs.  Given that 
+the code is experimental, we don't mind trading security for 
+convenience.  We will tighten this up later. 
 
-cd tools/vcrtcm
-make
-sudo make install
-cd ../radeon_vcrtcm_ctl
-make
-sudo make install
-
-You will get two executables called vcrtcm and radeon_vcrtcm_ctl.
-You can type 'radeon_vcrtcm_ctl ?' or 'vcrtcm help' for a short
-help pages.
-
-We should also note that at this time, the security settings of
-the new ioctl() are rather loose, so anyone with the ability to open
-/dev/drm/cardN device can control virtual CRTCs via radeon_vcrtcm_ctl
-device. Given that the code is experimental, we don't mind trading
-security for convenience. We will later tighten this up.
 To run vcrtcm as a regular user you must install some new UDEV rules.
 Go to tools/udev_rules directory and type 'sudo make install' there.
 
-You will also notice that the two programs are quite trivial,
-but they do the job and their primary purpose is to get you going and
-provide examples of controlling the VCRTCM and PCONs. We do not have
-plans to make them much fancier; if you feel like contributing
-here (either by extending the programs or wrapping them into scripts),
-you are most welcome.
+The vcrtcm tool is quite simple, but it does the job, and its primary 
+purpose is to get you going and to provide examples of controlling 
+VCRTCM and PCONs. We do not have plans to make it much fancier; if 
+you feel like contributing here (either by extending the tool or 
+wrapping it into scripts), you are most welcome.
 
-8. Getting your System Ready
+8. Compiling the DRM Resource Viewer
+====================================
+
+When a virtual CRTC is created, the system also creates a new
+virtual connector and a new virtual encoder that are associated 
+with that virtual CRTC.  To attach a PCON to a CRTC, you must specify 
+the DRM ID of a *connector* that is associated with the CRTC.  
+Logically this makes sense: PCONs get "plugged into" connectors 
+just as real monitors are plugged into connectors.
+
+To make it easy to determine the DRM ID of the virtual connector
+associate with a virtual CRTC, and to see all the other graphics 
+resources in the system, we provide a convenience tool called 
+'gpu_resource_dump'.  To compile it, type:
+
+$ cd tools/gpu_resource_dump
+$ make
+$ sudo make install
+
+You can type 'gpu_resource_dump -h' for a short help page.  To print
+all the resources associated with graphics card N, type:
+
+$ gpu_resource_dump -f -n /dev/dri/cardN
+
+Here is some example output:
+
+connector=35 DVI-I       connected    
+    used_encoder=34 
+        used_crtc=11:1 
+    possible_encoder=34
+        possible_crtc=10:0 
+        possible_crtc=11:1 
+        possible_crtc=12:2 
+        possible_crtc=13:3 
+        possible_crtc=14:4 
+        possible_crtc=15:5 
+    possible_encoder=36
+        possible_crtc=10:0 
+        possible_crtc=11:1 
+        possible_crtc=12:2 
+        possible_crtc=13:3 
+        possible_crtc=14:4 
+        possible_crtc=15:5 
+connector=39 DisplayPort     disconnected 
+    possible_encoder=40
+        possible_crtc=16:6 
+
+The first connector, with DRM ID 35, is a real DVI connector.  That connector
+can be used with either of the two listed real encoders, each of which themselves
+can be used with any of the six listed real CRTCs.  The second connector, with
+DRM ID 39, is a virtual connector associated with a virtual encoder and virtual
+CRTC.  Unlike real resources, the relationship between virtual connectors,
+virtual encoders, and virtual CRTCs is always 1-1-1.
+
+9. Getting your System Ready
 ============================
 
 You are almost ready to try out VCRTCM, but first you should make
@@ -414,11 +454,10 @@ sure that you have all userland packages installed and that you understand
 some limitations. You will also need to apply some patches to fix
 a few bugs that we found in Xorg and ATI DDX (xf86-video-ati library).
 
-Minimum requirements are:
+The minimum requirements are:
 
 - Kernel with our patches (described above)
 - vcrtcm application (described above)
-- radeon_vcrtcm_ctl application (described above)
 - libdrm >=2.4.25 
 - xf86-video-ati >=6.14.2 
 - mesa >= 7.11
@@ -510,7 +549,7 @@ After applying patches, you should rebuild and re-test your system
 before proceeding.
 
 Finally, we should mention one limitation. By default, ATI DDX will
-turn on tiling for all screens. That will result in PCONs 
+turn on 1D tiling for all screens. That will result in PCONs 
 receiving a tiled frame buffer and would further require that the
 PCON understands tiling. At this time, both of our PCONs understand 
 only linear (scanline) frame buffer, so you should turn the tiling 
@@ -522,8 +561,8 @@ result in a messy looking screen on your PCON (e.g your monitor
 attached to a DisplayLink dongle). All examples that follow will
 include turning off the tiling support in your GPU driver.
 
-9. Example Configurations
-=========================
+10. Example Configurations
+==========================
 
 We are finally ready to do something good with VCRTCM. We will
 walk through a few examples to give you the flavor of what you can
@@ -562,13 +601,13 @@ $ vcrtcm info
 You will get something like this:
 
 PIM: udl
- --> PCON: 0
-       -> DisplayLink Plugable UGA-2K-A - Serial #312126
-       -> Not Attached
+    PCON: 0
+        DisplayLink Pluggable UGA-2K-A - Serial #312126
+        unattached
 
 Now you are ready to use the newly created PCON and attach it
-to a CRTC. Wherever you see the <pcon_id> in examples below
-substitute it with the number that your vcrtcm returned.
+to a CRTC. Wherever you see the <pcon_id> in examples below,
+substitute it with the value that 'vcrtcm inst' returned.
 
 a) Trivial example
 ------------------
@@ -594,19 +633,34 @@ in some cases, though).
 Using the config_examples/xorg.conf_simple file, start XDM and log
 in. You should be in a single-screen session and you should see your
 desktop. Your DisplayLink device (assuming that it is connected)
-is should display blue screen.
+is should display a blue screen.
 
-Now attach it to CRTC-0:
+As already stated earlier, to attach a PCON to a CRTC, you must 
+specify the DRM ID of a *connector* that is associated with the 
+CRTC.  For example:
 
-$ radeon_vcrtcm_ctl attach /dev/dri/card0 0 <pcon_id>
+$ vcrtcm attach <pcon_id> <connector_id> /dev/dri/card0
 
-In the above example, <pcon_id> is the PCON ID (created with vcrtcm)
-and 0 is the CRTC number.
+Here <pcon_id> is the PCON ID (returned by 'vcrtcm inst'), 
+<connector_id> the DRM ID of a connector associated with the desired 
+CRTC, and the final argument is the graphics card card that owns the 
+resources.  This last argument is necessary because DRM connector 
+IDs are unique only within a given card.  Remember that you can 
+determine the connector's DRM ID by using the gpu_resource_dump
+tool described earlier.
+
+VCRTCM determines which CRTC to attach the PCON to as follows.
+If the given connector has exactly one possible CRTC (as is always
+the case with virtual connectors and virtual CRTCs), then that
+CRTC is chosen.  If, however, there is more than one possible 
+CRTC, then VCRTCM checks whether one of those CRTCs is currently
+in the connected state.  If so, then that CRTC is chosen.  In all 
+other cases, the attach command fails.
 
 Now set the frame rate at 30 frames per second on your DisplayLink
-device.
+device:
 
-$ radeon_vcrtcm_ctl fps /dev/dri/card0 0 30
+$ vcrtcm fps <pcon_id> 30
 
 You should see your desktop replicated on your main monitor
 (connected to your GPU's DVI port) as well as on your DL monitor.
@@ -620,10 +674,10 @@ both in frequency and phase.
 Now increase the frame rate to 60 fps (or whatever matches your
 monitor)
 
-$ radeon_vcrtcm_ctl fps /dev/dri/card0 0 60
+$ vcrtcm fps <pcon_id> 60
 
 The movements will become smoother, but you will still notice some
-"hickups" because the PCON is still running asynchronously from
+"hiccups" because the PCON is still running asynchronously from
 your monitor. 
 
 This assumes that you don't have any bottlenecks in your system, such
@@ -651,19 +705,19 @@ more interesting examples later.
 
 You can now stop the transmission of pixels to the PCON:
 
-$ radeon_vcrtcm_ctl stop /dev/dri/card0 0
+$ vcrtcm fps <pcon_id> 0
 
 Notice that the application continues to run on your primary
 monitor. It's only the updates to your PCONs that have stopped.
 
 Now you can detach
 
-$ radeon_vcrtcm_ctl detach /dev/dri/card0 0
+$ vcrtcm detach <pcon_id>
 
 You can also detach the PCON while the transmission is in
 progress, which will automatically stop the transmission.
 
-For fun sake, you can repeat the above exercise with the V4L2PIM.
+For fun sake, you can repeat the above exercise with v4l2pim.
 Instantiate a new PCON:
 
 $ sudo modprobe v4l2pim
@@ -704,7 +758,7 @@ Framebuffer0 -+-> CRTC-0 ---> Encoder0 ---> Connector0 ---> Monitor0
 
 Where N is the number that corresponds to your virtual CRTC.
 
-Before we show the radeon_vcrtcm_ctl commands (which you should be
+Before we show the vcrtcm commands (which you should be
 able to figure out) we need to explain how to figure out the value of N.
 That depends on your GPU. Most r6xx and r7xx have two CRTCs, so on these
 GPUs, CRTCs 0 and 1 will be physical CRTCs and the first virtual CRTC
@@ -740,11 +794,17 @@ Our Xorg.0.log file shows 10 lines with CRTC pointers:
 [   149.629] (II) RADEON(0):   0x96afb08
 
 So we know that the 4 out of these 10 are virtual and others are physical.
-Therefore, the first virtual CRTC is CRTC-6 and the commands to attach
-and stet the frame rate are:
+Attach to the first virtual CRTC:
 
-$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 <pcon_id>
-$ radeon_vcrtcm_ctl fps /dev/dri/card0 6 60
+$ vcrtcm attach <pcon_id> <connector_id> /dev/dri/card0
+
+Remember that you can determine the DRM ID of the virtual connector
+that is associated with the desired virtual CRTC by using the 
+gpu_resource_dump tool described earlier.
+
+Now set the frame rate:
+
+$ vcrtcm fps <pcon_id> 60
 
 Visually this example will look the same, but you should understand
 that it is conceptually different: you are attached to a different
@@ -771,29 +831,27 @@ on where your monitor is connected, your actual lines may be slightly
 different, but still similar to the above. In our example (which is
 for Radeon HD5570 card from Sapphire), first three connectors are physical
 connectors of our GPU. The DVI-0 connector has the monitor
-connected to it so it has the CRTC as well. Other two connectors
-don't have the CRTC because they are not connected. The four DisplayPort-N
-connectors are due to the virtual CRTC. When a virtual CRTC is
-created, the system does not only see the new CRTC, but also a new
-virtual connector and a new virtual encoder.
+connected to it so it has the CRTC as well.  The other two connectors
+don't have a CRTC because they are not connected. The four DisplayPort-N
+connectors are virtual connectors that were created on behalf of the
+virtual CRTCs. 
 
-For a virtual connector, we use DisplayPort type (which is an interface
+For a virtual connector, we use the DisplayPort type (which is an interface
 that can be adapted to various other ports using a special dongle;
 see http://en.wikipedia.org/wiki/DisplayPort for more info).
 The associated encoder is a special encoder that we call Virtual Encoder
 (and it does nothing other than logically connecting a virtual CRTC with
-the virtual connector). The virtual connector is always connected and the
-only possible CRTC for this connector is a the virtual CRTC for which the
+the virtual connector). The only possible CRTC for a virtual connector 
+is the virtual CRTC for which the
 connector was created (unlike physical CRTCs, virtual CRTCs cannot be
 arbitrarily switched around different connectors). For GPUs that don't
 have physical DisplayPort connectors, the first virtual connector is
 DisplayPort-0. For Systems that have N DisplayPort connectors,
-DisplayPort-0 through N-1 will be physical, while DisplayPort-N
+DisplayPort-0 through N-1 will be physical and DisplayPort-N
 and above will be virtual. This is important to understand, because in
 examples to follow we will be referring to particular connectors in
 xorg.conf files. If this has confused you more than it helped,
 you should read this blog post: http://www.botchco.com/agd5f/?p=51
-
 
 c) One Physical and one Virtual CRTC in Zaphod Mode
 ---------------------------------------------------
@@ -848,10 +906,10 @@ we direct it to a VGA port of our GPU.
 
 Finally, we get to the GPU instance that will be associated with a
 virtual CRTC, that is CRTC-6. As discussed before, the connector for
-a virtual CRTC is always a DisplayPort connector. Since our GPU does
-not have any real DisplayPort connectors, DisplayPort-0 is the
-virtual one. Therefore, we associate this GPU instance with DisplayPort-0
-connector.
+a virtual CRTC is always a virtual DisplayPort connector.  Since our 
+GPU does not have any real DisplayPort connectors, DisplayPort-0 is the
+virtual one. Therefore, we associate this GPU instance with the 
+DisplayPort-0 connector.
 
 You should also make sure that BusID in your "Device" sections matches
 the PCI Express slot in which your GPU resides and don't forget to
@@ -883,8 +941,8 @@ Now you are ready to try this out. The assumption is that you have not
 started your XDM session yet and that you are looking at a boring framebuffer
 console (e.g. fbcon). To attach and set the frame rate, you should type:
 
-$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 <pcon_id>
-$ radeon_vcrtcm_ctl fps /dev/dri/card0 6 60
+$ vcrtcm attach <pcon_id> <connector_id> /dev/dri/card0
+$ vcrtcm fps <pcon_id> 60
 
 The identical text console will appear on the screen associated with
 the virtual CRTC. Now, start your XDM session. The login screen will
@@ -902,11 +960,11 @@ precision issues with accurately setting the fps rate, because we use
 the jiffies clock, which has relatively poor granularity) and movement
 should be smooth. Now reduce the frame rate to 30
 
-$ radeon_vcrtcm_ctl fps /dev/dri/card0 6 30
+$ vcrtcm fps <pcon_id> 30
 
 You will see the frame rate reported by glxgears drops down to 30. This
 is because this time the application is synchronized with VBlanks
-generated by the PCON.  UDLPIM uses jiffies counter and kworker thread
+generated by the PCON.  udlpim uses jiffies counter and kworker thread
 to generate VBlanks, so their precision is limited to the precision
 of the counter. Hopefully you are using CONFIG_HZ_1000 for your kernel
 (otherwise the precision would be quite bad).
@@ -924,7 +982,7 @@ treated as a disconnected connector. With xorg.conf used in this example,
 Xorg won't create a desktop on disconnected connector, so we had
 to make it connected by calling the attach (and if the PCON is a 
 DisplayLink dongle, you should have connected the monitor to it, 
-because UDLPIM checks the monitor status and reports it to VCRTCM).
+because udlpim checks the monitor status and reports it to VCRTCM).
 
 You can change that behavior by setting radeon.conn_virt_crtc
 parameter to '1' at GPU driver load time. Note, however, that
@@ -945,7 +1003,6 @@ calling the 'attach/fps' commands somewhere in your boot scripts.
 Ideally, this should be done through UDEV policy but we have not
 implemented that yet. 
 
-
 d) One Desktop with one Physical and one Virtual CRTC
 -----------------------------------------------------
 
@@ -959,17 +1016,17 @@ examination, it should be straight forward to figure out what
 it is doing and how. Unlike Zaphod mode, there is only one GPU
 instance and "Monitor" sections are associated with the
 GPU by using an option "monitor-CONNECTOR_NAME". As you have
-probably guessed connectors are DVI-0 and DisplayPort-0
+probably guessed the connectors are DVI-0 and DisplayPort-0
 (this is something you may want to customize, especially if
-your GPU has some real DisplayPort connectors). Also,
+your GPU has some real DisplayPort connectors).  Also, 
 the relative location of your CRTCs on your big desktop
 is defined in "Monitor" sections. The rest should be clear.
 
 So start your XDM session, attach your PCON and set the frame
 rate.
 
-$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 <pcon_id>
-$ radeon_vcrtcm_ctl fps /dev/dri/card0 6 30
+$ vcrtcm attach <pcon_id> <connector_id> /dev/dri/card0
+$ vcrtcm fps <pcon_id> 30
 
 Set the frame rate of the something different from the refresh
 rate of the monitor that is attached to your DVI port so that you
@@ -1006,7 +1063,7 @@ e) Single Desktop with Virtual CRTC Only
 In this example, we will run X whose only screen is on a PCON
 (headless system). To do that go back to config_examples/xorg.conf_simple
 and yank out all monitor cables from your GPU. Leave the DisplayLink monitor
-connected (assuming that UDLPIM is your PCON).
+connected (assuming that udlpim is your PIM).
 
 At this point you are probably wondering where your text console
 (e.g. fbcon) will go. The answer is to the PCON, but you must
@@ -1020,8 +1077,8 @@ to ssh from, unless you are really good at typing blindly.
 Once you get onto your target machine, attach the PCON and set the frame
 rate:
 
-$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 <pcon_id>
-$ radeon_vcrtcm_ctl fps /dev/dri/card0 6 60
+$ vcrtcm attach <pcon_id> <connector_id> /dev/dri/card0
+$ vcrtcm fps <pcon_id> 60
 
 If your system starts XDM automatically, you should see the XDM login
 screen show up on your PCON. If not, you will see fbcon login. 
@@ -1043,7 +1100,7 @@ If that happens, see the next section for troubleshooting.
 f) Minimalistic xorg.conf and hotplug
 -------------------------------------
 
-The absolute minimum xorg.conf is the one that only tunrs tiling
+The absolute minimum xorg.conf is the one that only turns tiling
 off and leaves everything to the system to detect. To try this out,
 use config_examples/xorg.conf_minimal.
 
@@ -1051,18 +1108,18 @@ Start X without any PCON attached and log in. You can check
 the status of virtual ports with xrandr (they will be disconnected).
 Now load a PCON driver and attach it:
 
-$ radeon_vcrtcm_ctl attach /dev/dri/card0 6 <pcon_id>
-$ radeon_vcrtcm_ctl fps /dev/dri/card0 6 30
+$ vcrtcm attach <pcon_id> <connector_id> /dev/dri/card0
+$ vcrtcm fps <pcon_id> 30
 
 This will cause a hotplug event in your system and RANDR will resize
 the desktop to include a newly arrived CRTC. When you detach
 
-$ radeon_vcrtcm_ctl detach /dev/dri/card0 6
+$ vcrtcm detach <pcon_id>
 
 There will be a new hotplug event and the desktop will
 resize back to the smaller one.
 
-If you are using UDLPIM (DisplayLink) you can yank in and out the
+If you are using udlpim (DisplayLink) you can yank in and out the
 DVI side of the adapter and the behavior will be the same
 as if you are unplugging and plugging a regular port of your GPU.
 Desktop will be resizing back and forth as you do this.
@@ -1072,9 +1129,9 @@ the monitor.
 
 If you plug the adapter back in on the USB side, hotplug will
 not occur. What is missing here is the UDEV policy that will
-call radeon_vcrtcm_ctl automatically and issue attach/fps
-commands. With the proper UDEV policy and a few scripts, you
-should be able to create a full hotplug experience.
+call vcrtcm automatically and issue attach/fps commands. With 
+the proper UDEV policy and a few scripts, you should be able 
+to create a full hotplug experience.
 
 g) Putting it in perspective ... literally
 ------------------------------------------
@@ -1089,8 +1146,8 @@ desktop in it ... on your primary desktop. What will happen?
 Give it a try:
 
 $ sudo modprobe v4l2pim
-$ radeon_vcrtcm_ctl attach /dev/dri/card0 0 <pcon_id>
-$ radeon_vcrtcm_ctl fps /dev/dri/card0 0 30
+$ vcrtcm attach <pcon_id> <connector_id> /dev/dri/card0
+$ vcrtcm fps <pcon_id> 30
 $ vlc v4l2:///dev/video0
 
 Enjoy the show. Resize the VLC window and move things
@@ -1100,8 +1157,7 @@ to not cover the whole desktop) and place them around. Move
 them around. If you are running Compiz, turn on some desktop
 effects for better experience.
 
-
-10. Random Notes
+11. Random Notes
 ================
 
 In this section, we bundle a few random notes that you should
@@ -1132,16 +1188,16 @@ and blit-copy performance.
 b) Abusing the DisplayPort connector
 ------------------------------------
 
-"Stealing" DisplayPort connector type for virtual CRTCs is not the
-most fortunate and somewhat abusive. Someone could argue that we
+"Stealing" the DisplayPort connector type for virtual CRTCs is 
+somewhat abusive. Someone could argue that we
 should have introduced our own connector type, called "VirtualPort"
 or something along those line.
 
 We agree, but the problem is that the introduction of new connector
-tupe would ripple up to DRM kernel module, libdrm and probably DDX and
-Xorg and we wanted to limit the number of modules that we have to modify.
+tupe would ripple up to DRM kernel module, libdrm, and probably DDX and
+Xorg, and we wanted to limit the number of modules that we have to modify.
 So far we have been quite successful in limiting all our "intrusive"
-modifications to the existing code to the GPU driver (radeon kernel module). 
+modifications to the existing code to the GPU driver (radeon kernel module).
 Everything else is a new code in separate modules.
 
 This approach makes is easier to track the mainline development of DRI.
@@ -1160,22 +1216,22 @@ work in Zaphod mode, but that is a lot of work (and we probably won't
 get to it soon). A possible augmentation to the workaround is to add
 hack the GPU driver to register another "dump" with DRM for this purpose.
 We may add this in the future, but you can also achieve the same effect
-by creating one extra virtual CRTC and use its DisplayPort-N as a "dump"
-port.
+by creating one extra virtual CRTC and use its virtual DisplayPort
+connector as a "dump" port.
 
 d) The screen on my DisplayLink monitor went red (or blue)
 ----------------------------------------------------------
 
-If you are using UDLPIM and you see a red screen, don't panic.
-It's our inicator that UDLPIM didn't like something. This typically
+If you are using udlpim and you see a red screen, don't panic.
+It's our indicator that udlpim didn't like something. This typically
 happens if it is forced into a mode that it can't handle. If that
 happens, the transmission will be shut off, but no damage will be done.
 Once you fix the culprit (whatever is forcing it into a incompatible
-resolution), you can re-enable the transmission with 'radeon_vcrtcm_ctl fps'
+resolution), you can re-enable the transmission with the 'vcrtcm fps'
 command. This problem is most likely to happen if you load the GPU 
 driver with conn_virt_crtc=1. In this case the GPU does not query 
 the attached PCON for supported modes.  Instead, GPU makes up some 
-commonly used modes and tries to force them upon the PCON. If UDLPIM 
+commonly used modes and tries to force them upon the PCON. If udlpim 
 can't handle the forced mode it will turn the screen red. If you load 
 the GPU driver conn_virt_crtc=0 (default) the invalid mode is less 
 likely to happen. 
@@ -1215,7 +1271,7 @@ Try loading the v4l2pim driver with v4l2pim.stream_mem=128 parameter.
 ... TODO ...
 
 
-11. Reporting Bugs and Contributing
+12. Reporting Bugs and Contributing
 ===================================
 
 We hope to at some point have the public mailing list in place. In the
@@ -1235,12 +1291,12 @@ you can send us your pull requests.
 
 We also follow dri-devel mailing list. Whether you want to include that
 list in your VCRTCM-related questions and comments is your choice and
-use your own judgement. General discussion about usefulness of VCRTCM
+use your own judgment. General discussion about usefulness of VCRTCM
 for DRI community are probably appropriate for CC. Specific questions
 about setting up your system to use VCRTCM are probably better off
 to be directed to us.
 
-12. Acknowledgements
+13. Acknowledgments
 ====================
 
 The authors thank everyone on dri-devel mailing list for taking
